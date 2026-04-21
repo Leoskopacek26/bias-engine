@@ -387,6 +387,21 @@
       <div class="metric-card"><div class="mc-val val-neu" id="m-neu">—</div><div class="mc-lbl">Neutral</div></div>
       <div class="metric-card"><div class="mc-val val-gold" id="m-conf">—</div><div class="mc-lbl">Avg confidence</div></div>
       <div class="metric-card"><div class="mc-val" id="m-dxy" style="font-size:16px">—</div><div class="mc-lbl">DXY bias</div></div>
+      <div class="metric-card" id="m-sentiment-card" style="cursor:default">
+        <div class="mc-val" id="m-sentiment" style="font-size:15px">—</div>
+        <div class="mc-lbl">Risk sentiment</div>
+        <div id="m-vix" style="font-size:10px;color:var(--muted);margin-top:3px"></div>
+      </div>
+      <div class="metric-card" id="m-most-bull-card" onclick="const s=document.getElementById('m-most-bull').textContent;if(s&&s!=='—')selectRow(s)" style="cursor:pointer" title="Klikni pro detail">
+        <div class="mc-val val-bull" id="m-most-bull" style="font-size:16px;letter-spacing:.02em">—</div>
+        <div class="mc-lbl">Most bullish</div>
+        <div id="m-most-bull-pct" style="font-size:10px;color:var(--bull);margin-top:3px"></div>
+      </div>
+      <div class="metric-card" id="m-most-bear-card" onclick="const s=document.getElementById('m-most-bear').textContent;if(s&&s!=='—')selectRow(s)" style="cursor:pointer" title="Klikni pro detail">
+        <div class="mc-val val-bear" id="m-most-bear" style="font-size:16px;letter-spacing:.02em">—</div>
+        <div class="mc-lbl">Most bearish</div>
+        <div id="m-most-bear-pct" style="font-size:10px;color:var(--bear);margin-top:3px"></div>
+      </div>
     </div>
     <div class="table-wrap">
       <table class="bias-table" id="bias-table">
@@ -804,6 +819,66 @@ function renderMetrics() {
   const dxyEl = document.getElementById('m-dxy');
   dxyEl.textContent = macroData.dxy_change > 0 ? 'USD ↑ Strong' : macroData.dxy_change < 0 ? 'USD ↓ Weak' : 'USD Neutral';
   dxyEl.className = 'mc-val ' + dxyCls;
+
+  // ── Risk sentiment ──────────────────────────────────────────────────────────
+  const vix = macroData.vix || 18.2;
+  const sentEl   = document.getElementById('m-sentiment');
+  const sentCard = document.getElementById('m-sentiment-card');
+  const vixEl    = document.getElementById('m-vix');
+  let sentText, sentCls, sentBorder;
+  if (vix < 15) {
+    sentText = 'Risk-On 🟢'; sentCls = 'val-bull'; sentBorder = 'var(--bull-mid)';
+  } else if (vix < 20) {
+    sentText = 'Mírný Risk-On'; sentCls = 'val-bull'; sentBorder = 'var(--bull-mid)';
+  } else if (vix < 25) {
+    sentText = 'Neutrální'; sentCls = 'val-neu'; sentBorder = 'var(--neu)44';
+  } else if (vix < 30) {
+    sentText = 'Mírný Risk-Off'; sentCls = 'val-bear'; sentBorder = 'var(--bear-mid)';
+  } else {
+    sentText = 'Risk-Off 🔴'; sentCls = 'val-bear'; sentBorder = 'var(--bear-mid)';
+  }
+  sentEl.textContent = sentText;
+  sentEl.className = 'mc-val ' + sentCls;
+  sentCard.style.borderColor = sentBorder;
+  vixEl.textContent = 'VIX ' + vix.toFixed(1);
+
+  // ── Most bullish ────────────────────────────────────────────────────────────
+  const bullish = [...biasResults].filter(r => r.bias === 'Bullish')
+    .sort((a,b) => b.bull - a.bull || b.conf - a.conf);
+  const mostBull = bullish[0];
+  const mbEl  = document.getElementById('m-most-bull');
+  const mbPct = document.getElementById('m-most-bull-pct');
+  const mbCard = document.getElementById('m-most-bull-card');
+  if (mostBull) {
+    mbEl.textContent  = mostBull.sym;
+    mbPct.textContent = mostBull.bull + '% bull · conf ' + '●'.repeat(mostBull.conf) + '○'.repeat(5-mostBull.conf);
+    mbCard.style.borderColor = 'var(--bull-mid)';
+    mbCard.style.cursor = 'pointer';
+  } else {
+    mbEl.textContent  = '—';
+    mbPct.textContent = 'žádný bullish signál';
+    mbCard.style.borderColor = '';
+    mbCard.style.cursor = 'default';
+  }
+
+  // ── Most bearish ────────────────────────────────────────────────────────────
+  const bearish = [...biasResults].filter(r => r.bias === 'Bearish')
+    .sort((a,b) => b.bear - a.bear || b.conf - a.conf);
+  const mostBear = bearish[0];
+  const mbrEl   = document.getElementById('m-most-bear');
+  const mbrPct  = document.getElementById('m-most-bear-pct');
+  const mbrCard = document.getElementById('m-most-bear-card');
+  if (mostBear) {
+    mbrEl.textContent  = mostBear.sym;
+    mbrPct.textContent = mostBear.bear + '% bear · conf ' + '●'.repeat(mostBear.conf) + '○'.repeat(5-mostBear.conf);
+    mbrCard.style.borderColor = 'var(--bear-mid)';
+    mbrCard.style.cursor = 'pointer';
+  } else {
+    mbrEl.textContent  = '—';
+    mbrPct.textContent = 'žádný bearish signál';
+    mbrCard.style.borderColor = '';
+    mbrCard.style.cursor = 'default';
+  }
 }
 
 // ── ROW SELECTION + AI COMMENTARY ────────────────────────────────────────────
