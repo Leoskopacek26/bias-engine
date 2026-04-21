@@ -1367,20 +1367,17 @@ async function runTechnical() {
   const status = document.getElementById('tech-status');
   btn.disabled = true;
   btn.textContent = 'Načítám...';
-  status.textContent = 'Stahuji historická data...';
+  status.textContent = 'Stahuji a počítám na serveru...';
 
   try {
-    if (!techCache) {
-      // Voláme serverovou funkci — žádné CORS omezení
-      const res = await fetch('/.netlify/functions/techdata');
-      if (!res.ok) throw new Error('Techdata: ' + res.status);
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      techCache = data.rates;
-    }
-    status.textContent = 'Počítám indikátory...';
-    renderTechnical(techCache);
-    status.textContent = 'Hotovo';
+    // Server stáhne ECB data A spočítá indikátory — vrátí jen hotové výsledky
+    const res = await fetch('/.netlify/functions/techdata');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    // data.results = { EURUSD: {bias, rsi, emaTrend, momentum, conf}, ... }
+    renderTechnicalResults(data.results, data.days);
+    status.textContent = data.days + ' dnů dat · ' + data.start + ' → ' + data.end;
     btn.textContent = 'Obnovit';
   } catch(e) {
     status.textContent = 'Chyba: ' + e.message;
@@ -1389,107 +1386,27 @@ async function runTechnical() {
   btn.disabled = false;
 }
 
-function buildPriceSeries(fxRates, sym) {
-  const inst = INSTRUMENTS.find(i => i.sym === sym);
-  if (!inst) return [];
-  const dates = Object.keys(fxRates).sort();
-  return dates.map(d => {
-    const r = fxRates[d];
-    if (!r) return null;
-    // Vypočítej cenu páru z USD base kurzů
-    const b = inst.base, q = inst.quote;
-    let price = null;
-    if (b === 'USD') price = r[q] || null;
-    else if (q === 'USD') price = r[b] ? 1 / r[b] : null;
-    else if (b === 'XAU' || b === 'XAG') price = null; // komodity nemají ECB data
-    else if (r[b] && r[q]) price = (1/r[b]) * r[q]; // cross: EUR/GBP = (1/EUR_usd) * GBP_usd ... ale ECB má USD base
-      // ECB: rate[EUR] = EUR per 1 USD → EUR/USD = 1/rate[EUR]
-      // Pro cross EURGBP = EUR/USD / GBP/USD = (1/r.EUR) / (1/r.GBP) = r.GBP/r.EUR
-    if (price === null && b !== 'XAU' && b !== 'XAG') {
-      if (b === 'EUR' && q !== 'USD' && r.EUR && r[q]) price = r[q] / r.EUR;
-      else if (q === 'JPY' && r[b] && r.JPY) price = r.JPY / r[b];
-      else if (b === 'GBP' && q !== 'USD' && r.GBP && r[q]) price = r[q] / r.GBP;
-      else if (b === 'AUD' && q !== 'USD' && r.AUD && r[q]) price = r[q] / r.AUD;
-      else if (b === 'CAD' && q !== 'USD' && r.CAD && r[q]) price = r[q] / r.CAD;
-      else if (b === 'NZD' && q !== 'USD' && r.NZD && r[q]) price = r[q] / r.NZD;
-    }
-    return price;
-  }).filter(p => p !== null && !isNaN(p));
-}
-
-function calcEMA(prices, period) {
-  if (prices.length < period) return null;
-  const k = 2 / (period + 1);
-  let ema = prices.slice(0, period).reduce((a,b) => a+b, 0) / period;
-  for (let i = period; i < prices.length; i++) ema = prices[i] * k + ema * (1 - k);
-  return ema;
-}
-
-function calcRSI(prices, period = 14) {
-  if (prices.length < period + 1) return null;
-  let gains = 0, losses = 0;
-  for (let i = prices.length - period; i < prices.length; i++) {
-    const diff = prices[i] - prices[i-1];
-    if (diff > 0) gains += diff; else losses -= diff;
-  }
-  const rs = gains / (losses || 0.0001);
-  return 100 - (100 / (1 + rs));
-}
-
-function calcTechBias(prices) {
-  if (!prices || prices.length < 25) return { bias:'Neutral', rsi:50, emaTrend:'—', momentum:'—', conf:1 };
-  const ema20 = calcEMA(prices, 20);
-  const ema50 = calcEMA(prices, Math.min(50, prices.length - 1));
-  const rsi   = calcRSI(prices, 14);
-  const last  = prices[prices.length - 1];
-  const prev5 = prices[prices.length - 6];
-  const momentum = ((last - prev5) / prev5) * 100;
-
-  let score = 0;
-  // EMA křížení
-  if (ema20 && ema50) {
-    if (ema20 > ema50) score += 0.3; else score -= 0.3;
-    if (last > ema20) score += 0.2; else score -= 0.2;
-  }
-  // RSI
-  if (rsi !== null) {
-    if (rsi > 60) score += 0.25;
-    else if (rsi < 40) score -= 0.25;
-    else score += (rsi - 50) / 100;
-  }
-  // Momentum
-  if (momentum > 0.3) score += 0.25;
-  else if (momentum < -0.3) score -= 0.25;
-
-  const bias = score > 0.2 ? 'Bullish' : score < -0.2 ? 'Bearish' : 'Neutral';
-  const conf = Math.min(5, Math.max(1, Math.round(Math.abs(score) * 6)));
-  const emaTrend = ema20 && ema50 ? (ema20 > ema50 ? 'EMA20 > EMA50' : 'EMA20 < EMA50') : '—';
-  const momStr = momentum > 0 ? '+' + momentum.toFixed(2) + '%' : momentum.toFixed(2) + '%';
-  return { bias, rsi: rsi ? Math.round(rsi) : 50, emaTrend, momentum: momStr, conf, score };
-}
-
-function renderTechnical(fxRates) {
+function renderTechnicalResults(results, days) {
   const tbody = document.getElementById('tech-tbody');
-  const rows = INSTRUMENTS.map(inst => {
-    const prices = buildPriceSeries(fxRates, inst.sym);
-    const tech = prices.length > 20 ? calcTechBias(prices) : { bias:'—', rsi:null, emaTrend:'Nedostatek dat', momentum:'—', conf:0 };
-    // Fundamentální bias pro srovnání
+  if (!results) { tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted);padding:20px">Žádná data</td></tr>'; return; }
+
+  tbody.innerHTML = INSTRUMENTS.map(inst => {
+    const tech = results[inst.sym] || { bias:'Neutral', rsi:50, emaTrend:'—', momentum:'0.00%', conf:0 };
     const fund = biasResults.find(r => r.sym === inst.sym);
     const fundBias = fund ? fund.bias : 'Neutral';
-    // Kombinovaný bias — shoda fund + tech zvyšuje přesvědčení
-    let combo = 'Neutral', comboScore = 0;
-    if (fund && tech.bias !== '—') {
-      if (fundBias === tech.bias) comboScore = 2;
-      else if (fundBias === 'Neutral' || tech.bias === 'Neutral') comboScore = 1;
-      else comboScore = -1;
-      combo = comboScore >= 2 ? fundBias : comboScore === 1 ? (fundBias !== 'Neutral' ? fundBias : tech.bias) : 'Konflikt';
-    }
-    const agree = tech.bias === '—' ? 'na'
-      : fundBias === tech.bias ? 'yes'
-      : fundBias === 'Neutral' || tech.bias === 'Neutral' ? 'partial'
-      : 'no';
-    const agreeText = agree === 'yes' ? '✓ Shoda' : agree === 'partial' ? '~ Částečně' : agree === 'no' ? '✗ Konflikt' : '—';
-    const agreeCls  = agree === 'yes' ? 'agree-yes' : agree === 'no' ? 'agree-no' : 'agree-na';
+
+    // Kombinovaný bias
+    let combo = 'Neutral';
+    if (tech.bias !== 'Neutral' && fundBias !== 'Neutral') {
+      combo = tech.bias === fundBias ? tech.bias : 'Konflikt';
+    } else if (tech.bias !== 'Neutral') combo = tech.bias;
+    else if (fundBias !== 'Neutral') combo = fundBias;
+
+    const agree = tech.conf === 0 ? 'na'
+      : tech.bias === fundBias ? 'yes'
+      : (tech.bias === 'Neutral' || fundBias === 'Neutral') ? 'partial' : 'no';
+    const agreeText = agree==='yes' ? '✓ Shoda' : agree==='partial' ? '~ Částečně' : agree==='no' ? '✗ Konflikt' : '—';
+    const agreeCls  = agree==='yes' ? 'agree-yes' : agree==='no' ? 'agree-no' : 'agree-na';
 
     const grp = inst.grp;
     const bc = grp==='com'?'cat-com':grp==='cross'?'cat-cross':'cat-fx';
@@ -1497,19 +1414,18 @@ function renderTechnical(fxRates) {
     const tb = tech.bias==='Bullish'?'tech-bull':tech.bias==='Bearish'?'tech-bear':'tech-neu';
     const rsiCls = tech.rsi > 70 ? 'rsi-ob' : tech.rsi < 30 ? 'rsi-os' : 'rsi-mid';
     const comboCls = combo==='Bullish'?'combo-bull':combo==='Bearish'?'combo-bear':'combo-neu';
-    const momCls = tech.momentum && tech.momentum.startsWith('+') ? 'pct-bull' : tech.momentum && tech.momentum.startsWith('-') ? 'pct-bear' : '';
+    const momCls = tech.momentum && tech.momentum.startsWith('+') ? 'pct-bull' : 'pct-bear';
 
     return `<tr>
       <td><span class="sym">${inst.sym}</span><span class="cat-badge ${bc}">${bl}</span></td>
       <td><span class="bias-badge ${tb}">${tech.bias}</span></td>
-      <td><span class="rsi-val ${rsiCls}">${tech.rsi !== null ? tech.rsi : '—'}</span>${tech.rsi > 70 ? ' <span style="font-size:10px;color:var(--bear)">OB</span>' : tech.rsi < 30 ? ' <span style="font-size:10px;color:var(--bull)">OS</span>' : ''}</td>
+      <td><span class="rsi-val ${rsiCls}">${tech.rsi}</span>${tech.rsi > 70 ? ' <span style="font-size:10px;color:var(--bear)">OB</span>' : tech.rsi < 30 ? ' <span style="font-size:10px;color:var(--bull)">OS</span>' : ''}</td>
       <td style="font-size:11px;color:var(--muted)">${tech.emaTrend}</td>
       <td class="${momCls}" style="font-size:12px">${tech.momentum}</td>
       <td class="${comboCls}" style="font-weight:500">${combo}</td>
       <td class="${agreeCls}">${agreeText}</td>
     </tr>`;
-  });
-  tbody.innerHTML = rows.join('');
+  }).join('');
 }
 
 function toast(msg, type = 'info') {
