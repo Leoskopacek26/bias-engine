@@ -312,8 +312,7 @@
   .toast.info { color: var(--muted); }
 
   /* WEIGHT EDITOR */
-  .weight-editor { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 20px; }
-  .we-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+
   .we-instrument { }
   .we-sym { font-family: var(--font-head); font-size: 14px; font-weight: 600; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
   .we-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
@@ -612,6 +611,7 @@ let apiKey = localStorage.getItem('bias_engine_key') || '';
 // ── INIT ──────────────────────────────────────────────────────────────────────
 
 window.addEventListener('load', async () => {
+  try {
   setLoadingMsg('Loading saved settings...');
   if (apiKey) {
     document.getElementById('api-key-input').value = apiKey;
@@ -619,7 +619,6 @@ window.addEventListener('load', async () => {
   }
   const saved = localStorage.getItem('bias_engine_weights');
   if (saved) { try { weights = JSON.parse(saved); } catch(e){} }
-  buildWeightEditor();
   updateSortIcons();
   setLoadingMsg('Fetching macro data...');
   await fetchMacroData();
@@ -634,6 +633,9 @@ window.addEventListener('load', async () => {
     : 'Záložní data';
   document.getElementById('status-text').textContent = src;
   document.getElementById('status-dot').className = 'status-dot' + (macroData.fxSource.startsWith('live') ? ' live' : '');
+  } catch(initErr) {
+    console.error('Init error:', initErr);
+  }
   setTimeout(() => {
     document.getElementById('loading-overlay').classList.add('hidden');
   }, 600);
@@ -688,38 +690,44 @@ async function fetchMacroData() {
     fetched_at: new Date().toISOString(),
   };
 
+  // Pomocná funkce pro fetch s timeoutem
+  const fetchWithTimeout = (url, ms=8000) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), ms);
+    return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(t));
+  };
+
   try {
     setLoadingMsg('Stahuji makro data...');
-    const res = await fetch('/.netlify/functions/macro');
+    const res = await fetchWithTimeout('/.netlify/functions/macro', 10000);
     if (res.ok) {
       const d = await res.json();
-      // Přepíš výchozí hodnoty živými daty
-      if (d.yields10y)    macroData.yields10y    = d.yields10y;
+      if (d.yields10y)              macroData.yields10y    = d.yields10y;
       if (d.dxy_change !== undefined) macroData.dxy_change = d.dxy_change;
       if (d.cpi_surprise !== undefined) macroData.cpi_surprise = d.cpi_surprise;
       if (d.nfp_surprise !== undefined) macroData.nfp_surprise = d.nfp_surprise;
-      if (d.vix)          macroData.vix          = d.vix;
-      if (d.geo_risk)     macroData.geo_risk      = d.geo_risk;
-      if (d.rates)        macroData.rates         = d.rates;
-      if (d.sources)      macroData.sources       = d.sources;
+      if (d.vix)                    macroData.vix          = d.vix;
+      if (d.geo_risk)               macroData.geo_risk     = d.geo_risk;
+      if (d.rates)                  macroData.rates        = d.rates;
+      if (d.sources)                macroData.sources      = d.sources;
       macroData.fxSource  = 'live';
       macroData.fetched_at = d.fetched_at || new Date().toISOString();
     }
   } catch(e) {
-    // Netlify Function nedostupná (lokální soubor) — použijeme záložní data
     macroData.fxSource = 'offline';
-    // Záloha: zkus přímý Frankfurter (funguje lokálně)
+    // Záloha: přímý Frankfurter s krátkým timeoutem
     try {
-      const r = await fetch('https://api.frankfurter.app/latest?from=USD&to=EUR,GBP,JPY,CHF,AUD,CAD,NZD');
+      const r = await fetchWithTimeout('https://api.frankfurter.app/latest?from=USD&to=EUR,GBP,JPY,CHF,AUD,CAD,NZD', 6000);
       if (r.ok) {
         const fx = await r.json();
         macroData.rates = fx.rates;
-        if (fx.rates.EUR) {
-          macroData.dxy_change = parseFloat(((1.085 - 1/fx.rates.EUR) * 4).toFixed(3));
-        }
+        if (fx.rates.EUR) macroData.dxy_change = parseFloat(((1.085 - 1/fx.rates.EUR)*4).toFixed(3));
         macroData.fxSource = 'live-direct';
       }
-    } catch(e2) {}
+    } catch(e2) {
+      // Obojí selhalo — pokračuj se záložními daty, nezasekni se
+      macroData.fxSource = 'offline';
+    }
   }
 
   rebuildNorm();
@@ -1343,45 +1351,7 @@ function renderMacroTab() {
 
 // ── WEIGHT EDITOR ─────────────────────────────────────────────────────────────
 
-function buildWeightEditor() {
-  const grid = document.getElementById('we-grid');
-  grid.innerHTML = INSTRUMENTS.map(inst => `
-    <div class="we-instrument">
-      <div class="we-sym">${inst.sym}</div>
-      ${FACTORS.map(f => `
-        <div class="we-row">
-          <div class="we-label">${FACTOR_LABELS[f]}</div>
-          <input class="we-slider" type="range" min="-50" max="50" step="1"
-            value="${Math.round(weights[inst.sym][f]*100)}"
-            oninput="updateWeightVal(this,'${inst.sym}','${f}')">
-          <div class="we-val" id="wv-${inst.sym}-${f}">${weights[inst.sym][f]>0?'+':''}${weights[inst.sym][f].toFixed(2)}</div>
-        </div>
-      `).join('')}
-    </div>
-  `).join('');
-}
 
-function updateWeightVal(el, sym, factor) {
-  const v = el.value / 100;
-  weights[sym][factor] = v;
-  document.getElementById(`wv-${sym}-${factor}`).textContent = (v>0?'+':'')+v.toFixed(2);
-}
-
-function saveWeights() {
-  localStorage.setItem('bias_engine_weights', JSON.stringify(weights));
-  if (biasResults.length > 0) {
-    biasResults = INSTRUMENTS.map(inst => calcBias(inst.sym, macroData.norm));
-    renderTable();
-    renderMetrics();
-  }
-  toast('Weights saved & signals recalculated', 'success');
-}
-
-function resetWeights() {
-  weights = JSON.parse(JSON.stringify(DEFAULT_WEIGHTS));
-  buildWeightEditor();
-  toast('Weights reset to defaults', 'info');
-}
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 
