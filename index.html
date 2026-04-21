@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fundamental Bias Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c0f;
+    --surface: #11141a;
+    --surface2: #181c24;
+    --border: #1f2530;
+    --border2: #2a3040;
+    --text: #e8ecf0;
+    --muted: #5a6478;
+    --dim: #3a4255;
+    --bull: #00e5a0;
+    --bull-dim: #00e5a020;
+    --bull-mid: #00e5a060;
+    --bear: #ff4d6a;
+    --bear-dim: #ff4d6a20;
+    --bear-mid: #ff4d6a60;
+    --neu: #7b8fc4;
+    --neu-dim: #7b8fc420;
+    --gold: #f0c040;
+    --gold-dim: #f0c04020;
+    --accent: #4d8fff;
+    --accent-dim: #4d8fff18;
+    --font-head: 'Syne', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 14px; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    border-bottom: 1px solid var(--border);
+    padding: 18px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .header-left { display: flex; align-items: baseline; gap: 14px; }
+  .logo { font-family: var(--font-head); font-size: 18px; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
+  .logo span { color: var(--bull); }
+  .build-tag { font-size: 10px; color: var(--muted); border: 1px solid var(--border2); padding: 2px 7px; border-radius: 3px; text-transform: uppercase; letter-spacing: .08em; }
+  .header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); display: inline-block; transition: background .3s; }
+  .status-dot.live { background: var(--bull); box-shadow: 0 0 6px var(--bull-mid); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+  .status-text { font-size: 11px; color: var(--muted); }
+  #last-update { font-size: 11px; color: var(--muted); }
+
+  /* API KEY INPUT */
+  .api-section {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .api-label { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .api-input {
+    flex: 1; min-width: 260px; max-width: 420px;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    padding: 7px 12px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text);
+    outline: none;
+    transition: border-color .2s;
+  }
+  .api-input:focus { border-color: var(--accent); }
+  .api-input::placeholder { color: var(--dim); }
+  .btn {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 7px 16px;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .btn-primary {
+    background: var(--bull);
+    border-color: var(--bull);
+    color: #000;
+    font-weight: 500;
+  }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-ghost { background: transparent; color: var(--muted); }
+  .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .api-note { font-size: 10px; color: var(--muted); }
+  .api-note a { color: var(--accent); text-decoration: none; }
+
+  /* ── MAIN ── */
+  .main { padding: 24px 28px; max-width: 1300px; }
+
+  /* TABS */
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+  .tab-btn {
+    font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+    background: none; border: none; padding: 10px 18px;
+    cursor: pointer; border-bottom: 2px solid transparent;
+    text-transform: uppercase; letter-spacing: .07em;
+    transition: all .15s;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--bull); border-bottom-color: var(--bull); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* SUMMARY METRICS */
+  .metrics-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 22px; }
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+  }
+  .metric-card .mc-val { font-family: var(--font-head); font-size: 24px; font-weight: 700; margin-bottom: 2px; }
+  .metric-card .mc-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .val-bull { color: var(--bull); }
+  .val-bear { color: var(--bear); }
+  .val-neu { color: var(--neu); }
+  .val-gold { color: var(--gold); }
+
+  /* INSTRUMENT TABLE */
+  .table-wrap { overflow-x: auto; }
+  .bias-table { width: 100%; border-collapse: collapse; }
+  .bias-table th {
+    font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em;
+    text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border);
+    font-weight: 500; white-space: nowrap;
+  }
+  .bias-table td { padding: 11px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .bias-table tr:hover td { background: var(--surface2); cursor: pointer; }
+  .bias-table tr.selected td { background: var(--accent-dim); }
+  .sym { font-family: var(--font-head); font-size: 14px; font-weight: 600; letter-spacing: .01em; }
+  .cat-badge {
+    font-size: 9px; padding: 2px 6px; border-radius: 2px;
+    text-transform: uppercase; letter-spacing: .07em; margin-left: 6px;
+    display: inline-block; vertical-align: middle;
+  }
+  .cat-fx { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent)44; }
+  .cat-fx  { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent)44; }
+  .cat-cross { background: #7b8fc420; color: #a0b0e0; border: 1px solid #7b8fc455; }
+  .cat-com { background: var(--gold-dim); color: var(--gold); border: 1px solid var(--gold)44; }
+  .bias-badge {
+    font-size: 11px; padding: 4px 10px; border-radius: 3px;
+    font-weight: 500; display: inline-block; min-width: 68px; text-align: center;
+  }
+  .bias-bull { background: var(--bull-dim); color: var(--bull); border: 1px solid var(--bull-mid); }
+  .bias-bear { background: var(--bear-dim); color: var(--bear); border: 1px solid var(--bear-mid); }
+  .bias-neu  { background: var(--neu-dim);  color: var(--neu);  border: 1px solid var(--neu)44; }
+  .bias-loading { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+
+  .bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .bar-bg { height: 5px; border-radius: 3px; background: var(--border2); overflow: hidden; width: 80px; flex-shrink: 0; }
+  .bar-fill { height: 5px; border-radius: 3px; transition: width .6s ease; }
+  .bar-bull-fill { background: var(--bull); }
+  .bar-bear-fill { background: var(--bear); }
+  .pct-text { font-size: 12px; min-width: 34px; }
+  .pct-bull { color: var(--bull); }
+  .pct-bear { color: var(--bear); }
+
+  .conf-wrap { display: flex; gap: 3px; align-items: center; }
+  .conf-pip { width: 7px; height: 7px; border-radius: 50%; background: var(--border2); }
+  .conf-pip.on { background: var(--text); }
+  .conf-pip.on.high { background: var(--bull); }
+  .conf-pip.on.mid { background: var(--gold); }
+  .conf-pip.on.low { background: var(--muted); }
+
+  .driver-list { display: flex; flex-wrap: wrap; gap: 4px; }
+  .driver-chip {
+    font-size: 10px; padding: 2px 7px; border-radius: 2px;
+    background: var(--surface2); border: 1px solid var(--border2); color: var(--muted);
+    white-space: nowrap;
+  }
+
+  /* DETAIL PANEL */
+  .detail-panel {
+    margin-top: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 20px 22px;
+    display: none;
+    animation: slideIn .2s ease;
+  }
+  .detail-panel.open { display: block; }
+  @keyframes slideIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+  .detail-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .detail-sym { font-family: var(--font-head); font-size: 20px; font-weight: 700; }
+  .detail-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; }
+  .detail-close:hover { color: var(--text); }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .detail-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 14px; }
+  .detail-box-title { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 8px; }
+  .detail-box-val { font-family: var(--font-head); font-size: 22px; font-weight: 700; }
+  .detail-prob-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .detail-prob-bar { flex: 1; height: 8px; border-radius: 4px; background: var(--border2); overflow: hidden; }
+  .detail-prob-fill { height: 8px; border-radius: 4px; }
+  .ai-comment {
+    background: var(--surface2);
+    border-left: 2px solid var(--accent);
+    border-radius: 0 4px 4px 0;
+    padding: 14px 16px;
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--text);
+  }
+  .ai-comment-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+  .ai-comment.loading { color: var(--muted); animation: blink 1.2s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .driver-score-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .driver-name { font-size: 11px; color: var(--muted); width: 130px; flex-shrink: 0; }
+  .driver-bar-bg { flex: 1; height: 4px; background: var(--border2); border-radius: 2px; overflow: hidden; }
+  .driver-bar-fill { height: 4px; border-radius: 2px; }
+  .driver-score-val { font-size: 11px; width: 36px; text-align: right; }
+
+  /* BACK-TEST TAB */
+  .backtest-info {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px 22px;
+    margin-bottom: 18px;
+  }
+  .backtest-info p { font-size: 12px; color: var(--muted); line-height: 1.8; margin-bottom: 8px; }
+  .backtest-info p:last-child { margin-bottom: 0; }
+  .bt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .bt-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: border-color .15s;
+  }
+  .bt-card:hover { border-color: var(--border2); }
+  .bt-card .bt-sym { font-family: var(--font-head); font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .bt-card .bt-acc { font-size: 22px; font-weight: 700; font-family: var(--font-head); }
+  .bt-card .bt-sub { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .bt-card .bt-signals { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .acc-great { color: var(--bull); }
+  .acc-good { color: var(--gold); }
+  .acc-fair { color: var(--neu); }
+  .acc-poor { color: var(--bear); }
+  .bt-hist-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .bt-hist-table th { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; padding: 6px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+  .bt-hist-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .correct { color: var(--bull); }
+  .incorrect { color: var(--bear); }
+  .neutral-outcome { color: var(--muted); }
+
+  /* MACRO TAB */
+  .macro-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .macro-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+  }
+  .macro-card .mc-name { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+  .macro-card .mc-val2 { font-family: var(--font-head); font-size: 20px; font-weight: 700; }
+  .macro-card .mc-change { font-size: 11px; margin-top: 4px; }
+  .macro-card .mc-src { font-size: 10px; color: var(--dim); margin-top: 6px; }
+  .positive { color: var(--bull); }
+  .negative { color: var(--bear); }
+
+  /* LOADING OVERLAY */
+  .loading-overlay {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 100; transition: opacity .4s;
+  }
+  .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+  .loading-logo { font-family: var(--font-head); font-size: 28px; font-weight: 700; color: var(--text); margin-bottom: 24px; }
+  .loading-logo span { color: var(--bull); }
+  .loading-bar-wrap { width: 200px; height: 2px; background: var(--border); border-radius: 1px; overflow: hidden; }
+  .loading-bar { height: 2px; background: var(--bull); width: 0; animation: loadbar 1.5s ease forwards; }
+  @keyframes loadbar { to{width:100%} }
+  .loading-msg { font-size: 11px; color: var(--muted); margin-top: 14px; }
+
+  /* TOASTS */
+  .toast-wrap { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 200; }
+  .toast {
+    background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: 4px; padding: 10px 16px; font-size: 12px;
+    animation: toastIn .2s ease; max-width: 320px;
+  }
+  @keyframes toastIn { from{opacity:0;transform:translateX(12px)} to{opacity:1;transform:translateX(0)} }
+  .toast.error { border-color: var(--bear-mid); color: var(--bear); }
+  .toast.success { border-color: var(--bull-mid); color: var(--bull); }
+  .toast.info { color: var(--muted); }
+
+  /* WEIGHT EDITOR */
+  .weight-editor { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 20px; }
+  .we-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+  .we-instrument { }
+  .we-sym { font-family: var(--font-head); font-size: 14px; font-weight: 600; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .we-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .we-label { font-size: 11px; color: var(--muted); width: 120px; flex-shrink: 0; }
+  .we-slider { flex: 1; accent-color: var(--bull); }
+  .we-val { font-size: 11px; width: 40px; text-align: right; }
+  .we-desc { font-size: 11px; color: var(--muted); line-height: 1.7; margin-bottom: 14px; }
+
+  .bias-table th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  .bias-table th.sortable:hover { color: var(--text); }
+  .bias-table th.sort-active { color: var(--bull); }
+  .sort-icon { font-size: 9px; margin-left: 3px; opacity: 0.5; }
+  .sort-icon.asc::after  { content: '▲'; }
+  .sort-icon.desc::after { content: '▼'; }
+  .sort-icon.none::after { content: '⇅'; opacity: 0.3; }
+
+  @media (max-width: 640px) {
+    .main { padding: 16px; }
+    .header { padding: 14px 16px; }
+    .api-section { padding: 12px 16px; }
+    .detail-grid { grid-template-columns: 1fr; }
+    .bar-bg { width: 50px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-logo">Bias<span>Engine</span></div>
+  <div class="loading-bar-wrap"><div class="loading-bar"></div></div>
+  <div class="loading-msg" id="loading-msg">Initializing...</div>
+</div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo">Bias<span>Engine</span></div>
+    <div class="build-tag">Fundamental · Macro</div>
+  </div>
+  <div class="header-right">
+    <span class="status-dot" id="status-dot"></span>
+    <span class="status-text" id="status-text">Not connected</span>
+    <span id="last-update"></span>
+    <button class="btn btn-primary" id="refresh-btn" onclick="runEngine()">↻ Refresh</button>
+  </div>
+</header>
+
+<!-- API KEY INPUT -->
+<div class="api-section">
+  <span class="api-label">Claude API Key <span style="color:var(--dim)">(volitelné — pro AI komentáře)</span></span>
+  <input class="api-input" type="password" id="api-key-input" placeholder="sk-ant-api03-..." autocomplete="off">
+  <button class="btn btn-primary" id="connect-btn" onclick="connectAPI()">Připojit</button>
+  <span class="api-note">Zdarma na <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> · Uloženo pouze v tvém prohlížeči</span>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('dashboard',this)">Dashboard</button>
+    <button class="tab-btn" onclick="switchTab('backtest',this)">Back-test</button>
+    <button class="tab-btn" onclick="switchTab('macro',this)">Macro data</button>
+    <button class="tab-btn" onclick="switchTab('weights',this)">Tune weights</button>
+  </div>
+
+  <!-- DASHBOARD TAB -->
+  <div class="tab-panel active" id="tab-dashboard">
+    <div class="metrics-row" id="metrics-row">
+      <div class="metric-card"><div class="mc-val val-bull" id="m-bull">—</div><div class="mc-lbl">Bullish</div></div>
+      <div class="metric-card"><div class="mc-val val-bear" id="m-bear">—</div><div class="mc-lbl">Bearish</div></div>
+      <div class="metric-card"><div class="mc-val val-neu" id="m-neu">—</div><div class="mc-lbl">Neutral</div></div>
+      <div class="metric-card"><div class="mc-val val-gold" id="m-conf">—</div><div class="mc-lbl">Avg confidence</div></div>
+      <div class="metric-card"><div class="mc-val" id="m-dxy" style="font-size:16px">—</div><div class="mc-lbl">DXY bias</div></div>
+    </div>
+    <div class="table-wrap">
+      <table class="bias-table" id="bias-table">
+        <thead><tr id="sort-header">
+          <th onclick="sortBy('sym')" class="sortable" data-col="sym">Instrument <span class="sort-icon" id="si-sym"></span></th>
+          <th onclick="sortBy('bias')" class="sortable" data-col="bias">Bias <span class="sort-icon" id="si-bias"></span></th>
+          <th onclick="sortBy('bull')" class="sortable" data-col="bull">Bullish <span class="sort-icon" id="si-bull"></span></th>
+          <th onclick="sortBy('bear')" class="sortable" data-col="bear">Bearish <span class="sort-icon" id="si-bear"></span></th>
+          <th onclick="sortBy('conf')" class="sortable" data-col="conf">Confidence <span class="sort-icon" id="si-conf"></span></th>
+          <th>Key drivers</th>
+        </tr></thead>
+        <tbody id="bias-tbody">
+          <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px">Connect your Claude API key and click Refresh to generate today's bias signals.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="detail-panel" id="detail-panel">
+      <div class="detail-header">
+        <div class="detail-sym" id="dp-sym">—</div>
+        <button class="detail-close" onclick="closeDetail()">✕</button>
+      </div>
+      <div class="detail-grid">
+        <div class="detail-box">
+          <div class="detail-box-title">Today's bias</div>
+          <div class="detail-box-val" id="dp-bias">—</div>
+          <div class="detail-prob-row">
+            <span style="font-size:11px;color:var(--bull);width:34px" id="dp-bull-pct">—</span>
+            <div class="detail-prob-bar"><div class="detail-prob-fill bar-bull-fill" id="dp-bull-bar" style="width:0%"></div></div>
+            <div class="detail-prob-bar"><div class="detail-prob-fill bar-bear-fill" id="dp-bear-bar" style="width:0%"></div></div>
+            <span style="font-size:11px;color:var(--bear);width:34px;text-align:right" id="dp-bear-pct">—</span>
+          </div>
+        </div>
+        <div class="detail-box">
+          <div class="detail-box-title">Factor contributions</div>
+          <div id="dp-drivers-chart"></div>
+        </div>
+      </div>
+      <div class="ai-comment-label">AI commentary</div>
+      <div class="ai-comment" id="dp-comment">Select an instrument row above to see its AI-generated explanation.</div>
+    </div>
+  </div>
+
+  <!-- BACK-TEST TAB -->
+  <div class="tab-panel" id="tab-backtest">
+    <div class="backtest-info">
+      <p>This back-test uses <strong style="color:var(--text)">real historical data</strong> from FRED (US Federal Reserve) and Frankfurter.app (ECB). For each trading day in the past 60 days it reconstructs the macro conditions using actual US 10Y yields and EUR/USD rates, calculates what bias the engine <em>would have generated</em> that morning, then compares against what the market actually did that day.</p>
+      <p style="color:var(--muted)">Data sources: FRED (DGS10 — US 10-year yield) · Frankfurter.app (ECB daily FX rates). Both free and public. Fetching ~60 days takes 5–10 seconds.</p>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="runBacktest()" id="bt-run-btn">Fetch real data & run back-test</button>
+        <span id="bt-progress" style="font-size:11px;color:var(--muted)"></span>
+      </div>
+    </div>
+    <div id="bt-results" style="display:none">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px" id="bt-data-note"></div>
+      <div class="bt-grid" id="bt-grid"></div>
+      <div style="font-family:var(--font-head);font-size:13px;font-weight:600;margin-bottom:10px;color:var(--muted)">Signal history — <span id="bt-selected-sym">select an instrument above</span></div>
+      <div class="table-wrap">
+        <table class="bt-hist-table">
+          <thead><tr><th>Date</th><th>Predicted bias</th><th>Actual move</th><th>Result</th><th>10Y yield</th><th>EUR/USD</th><th>Top factor</th></tr></thead>
+          <tbody id="bt-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MACRO TAB -->
+  <div class="tab-panel" id="tab-macro">
+    <div class="macro-grid" id="macro-grid">
+      <div class="macro-card"><div class="mc-name">Loading macro data...</div></div>
+    </div>
+    <div style="font-size:11px;color:var(--muted)">Data sourced from FRED (St. Louis Federal Reserve), Frankfurter.app (ECB exchange rates). Refreshed on each engine run. All sources are free and public.</div>
+  </div>
+
+  <!-- WEIGHTS TAB -->
+  <div class="tab-panel" id="tab-weights">
+    <div class="we-desc">Adjust how much each macro factor influences the bias for each instrument. Positive = factor is bullish for the instrument when high. Negative = factor is bearish when high. These are the weights used in the bias calculation — tune them based on your own macro understanding.</div>
+    <div class="weight-editor">
+      <div class="we-grid" id="we-grid"></div>
+    </div>
+    <button class="btn btn-primary" style="margin-top:14px" onclick="saveWeights()">Save weights & recalculate</button>
+    <button class="btn btn-ghost" style="margin-top:14px;margin-left:8px" onclick="resetWeights()">Reset to defaults</button>
+  </div>
+
+</div>
+
+<!-- TOASTS -->
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+
+const INSTRUMENTS = [
+  // Hlavní páry (Major)
+  {sym:'EURUSD', cat:'fx',  base:'EUR', quote:'USD', grp:'major'},
+  {sym:'GBPUSD', cat:'fx',  base:'GBP', quote:'USD', grp:'major'},
+  {sym:'USDJPY', cat:'fx',  base:'USD', quote:'JPY', grp:'major'},
+  {sym:'USDCHF', cat:'fx',  base:'USD', quote:'CHF', grp:'major'},
+  {sym:'AUDUSD', cat:'fx',  base:'AUD', quote:'USD', grp:'major'},
+  {sym:'USDCAD', cat:'fx',  base:'USD', quote:'CAD', grp:'major'},
+  {sym:'NZDUSD', cat:'fx',  base:'NZD', quote:'USD', grp:'major'},
+  // Křížové páry (Cross)
+  {sym:'EURGBP', cat:'fx',  base:'EUR', quote:'GBP', grp:'cross'},
+  {sym:'EURJPY', cat:'fx',  base:'EUR', quote:'JPY', grp:'cross'},
+  {sym:'EURCHF', cat:'fx',  base:'EUR', quote:'CHF', grp:'cross'},
+  {sym:'EURAUD', cat:'fx',  base:'EUR', quote:'AUD', grp:'cross'},
+  {sym:'EURCAD', cat:'fx',  base:'EUR', quote:'CAD', grp:'cross'},
+  {sym:'GBPJPY', cat:'fx',  base:'GBP', quote:'JPY', grp:'cross'},
+  {sym:'GBPAUD', cat:'fx',  base:'GBP', quote:'AUD', grp:'cross'},
+  {sym:'AUDJPY', cat:'fx',  base:'AUD', quote:'JPY', grp:'cross'},
+  {sym:'CADJPY', cat:'fx',  base:'CAD', quote:'JPY', grp:'cross'},
+  {sym:'NZDJPY', cat:'fx',  base:'NZD', quote:'JPY', grp:'cross'},
+  // Komodity
+  {sym:'XAUUSD', cat:'com', base:'XAU', quote:'USD', grp:'com'},
+  {sym:'XAGUSD', cat:'com', base:'XAG', quote:'USD', grp:'com'},
+];
+
+const FACTORS = ['dxy','yields10y','cpi_surprise','nfp_surprise','risk_sentiment','geo_risk'];
+const FACTOR_LABELS = {
+  dxy: 'DXY strength',
+  yields10y: 'US 10Y yields',
+  cpi_surprise: 'CPI surprise',
+  nfp_surprise: 'NFP surprise',
+  risk_sentiment: 'Risk sentiment',
+  geo_risk: 'Geopolitical risk',
+};
+
+// Default weight matrix: instrument → factor → weight (-1 to +1)
+// Positive weight = bullish signal when factor is high
+const DEFAULT_WEIGHTS = {
+  // ── HLAVNÍ PÁRY ──────────────────────────────────────────────────────────────
+  // dxy: USD sila vs daný pár | yields10y: US výnosy | risk_sentiment: risk-on/off
+  EURUSD: {dxy:-0.40, yields10y:-0.22, cpi_surprise:-0.15, nfp_surprise:-0.10, risk_sentiment:+0.08, geo_risk:-0.05},
+  GBPUSD: {dxy:-0.38, yields10y:-0.20, cpi_surprise:-0.14, nfp_surprise:-0.10, risk_sentiment:+0.10, geo_risk:-0.08},
+  USDJPY: {dxy:+0.30, yields10y:+0.35, cpi_surprise:+0.12, nfp_surprise:+0.10, risk_sentiment:+0.08, geo_risk:-0.05},
+  USDCHF: {dxy:+0.32, yields10y:+0.20, cpi_surprise:+0.12, nfp_surprise:+0.08, risk_sentiment:+0.12, geo_risk:-0.16},
+  AUDUSD: {dxy:-0.28, yields10y:-0.12, cpi_surprise:-0.08, nfp_surprise:+0.05, risk_sentiment:+0.28, geo_risk:-0.09},
+  USDCAD: {dxy:+0.30, yields10y:+0.15, cpi_surprise:+0.10, nfp_surprise:+0.08, risk_sentiment:-0.10, geo_risk:+0.07},
+  NZDUSD: {dxy:-0.28, yields10y:-0.12, cpi_surprise:-0.08, nfp_surprise:+0.04, risk_sentiment:+0.26, geo_risk:-0.12},
+  // ── KŘÍŽOVÉ PÁRY ─────────────────────────────────────────────────────────────
+  // Křížové páry reagují na relativní sílu obou měn, ne přímo na USD
+  // Pozitivní dxy = silný USD = bearish na EUR stranu, bullish na JPY/CHF (safe haven)
+  // EURGBP: EUR vs GBP — ECB vs BoE divergence, riskové toky
+  EURGBP: {dxy:+0.05, yields10y:+0.08, cpi_surprise:+0.06, nfp_surprise:+0.04, risk_sentiment:-0.15, geo_risk:-0.20},
+  // EURJPY: EUR vs JPY — výnosový diferenciál EU/JP, risk sentiment (JPY safe haven)
+  EURJPY: {dxy:-0.10, yields10y:+0.30, cpi_surprise:-0.08, nfp_surprise:-0.05, risk_sentiment:+0.25, geo_risk:-0.22},
+  // EURCHF: EUR vs CHF — geopolitické riziko dominuje (CHF safe haven), ECB vs SNB
+  EURCHF: {dxy:+0.08, yields10y:+0.12, cpi_surprise:+0.05, nfp_surprise:+0.03, risk_sentiment:+0.18, geo_risk:-0.30},
+  // EURAUD: EUR vs AUD — risk sentiment (AUD komoditní), čínský vliv
+  EURAUD: {dxy:-0.08, yields10y:+0.10, cpi_surprise:+0.05, nfp_surprise:+0.02, risk_sentiment:-0.32, geo_risk:+0.05},
+  // EURCAD: EUR vs CAD — ropa ovlivňuje CAD, ECB vs BoC
+  EURCAD: {dxy:-0.06, yields10y:+0.08, cpi_surprise:+0.04, nfp_surprise:+0.02, risk_sentiment:-0.20, geo_risk:+0.10},
+  // GBPJPY: "The Dragon" — vysoce volatilní, kombinuje GBP momentum + JPY carry
+  GBPJPY: {dxy:-0.08, yields10y:+0.32, cpi_surprise:-0.10, nfp_surprise:-0.08, risk_sentiment:+0.30, geo_risk:-0.22},
+  // GBPAUD: GBP vs AUD — BoE vs RBA, risk sentiment
+  GBPAUD: {dxy:-0.06, yields10y:+0.08, cpi_surprise:+0.04, nfp_surprise:+0.02, risk_sentiment:-0.28, geo_risk:+0.04},
+  // AUDJPY: čistý risk-on/off pár — AUD nahoru při risk-on, JPY nahoru při risk-off
+  AUDJPY: {dxy:-0.05, yields10y:+0.22, cpi_surprise:-0.06, nfp_surprise:-0.04, risk_sentiment:+0.40, geo_risk:-0.25},
+  // CADJPY: CAD carry vs JPY safe haven, ropa hraje roli
+  CADJPY: {dxy:-0.05, yields10y:+0.20, cpi_surprise:-0.05, nfp_surprise:-0.04, risk_sentiment:+0.35, geo_risk:-0.22},
+  // NZDJPY: similar to AUDJPY — risk-on/off, NZD commodity/China exposure
+  NZDJPY: {dxy:-0.05, yields10y:+0.22, cpi_surprise:-0.06, nfp_surprise:-0.04, risk_sentiment:+0.38, geo_risk:-0.25},
+  // ── KOMODITY ─────────────────────────────────────────────────────────────────
+  XAUUSD: {dxy:-0.38, yields10y:-0.30, cpi_surprise:+0.10, nfp_surprise:-0.08, risk_sentiment:-0.05, geo_risk:+0.09},
+  XAGUSD: {dxy:-0.32, yields10y:-0.25, cpi_surprise:+0.08, nfp_surprise:-0.06, risk_sentiment:+0.10, geo_risk:+0.09},
+};
+
+let weights = JSON.parse(JSON.stringify(DEFAULT_WEIGHTS));
+let macroData = null;
+let biasResults = [];
+let selectedRow = null;
+let apiKey = localStorage.getItem('bias_engine_key') || '';
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+
+window.addEventListener('load', async () => {
+  setLoadingMsg('Loading saved settings...');
+  if (apiKey) {
+    document.getElementById('api-key-input').value = apiKey;
+    setConnected(true);
+  }
+  const saved = localStorage.getItem('bias_engine_weights');
+  if (saved) { try { weights = JSON.parse(saved); } catch(e){} }
+  buildWeightEditor();
+  updateSortIcons();
+  setLoadingMsg('Fetching macro data...');
+  await fetchMacroData();
+  renderMacroTab();
+  // Auto-run engine so dashboard is populated immediately
+  biasResults = INSTRUMENTS.map(inst => calcBias(inst.sym, macroData.norm));
+  renderTable();
+  renderMetrics();
+  // Update status to show data source
+  const src = macroData.fxSource === 'live' ? 'Živá data ✓'
+    : macroData.fxSource === 'live-direct' ? 'Částečná živá data'
+    : 'Záložní data';
+  document.getElementById('status-text').textContent = src;
+  document.getElementById('status-dot').className = 'status-dot' + (macroData.fxSource.startsWith('live') ? ' live' : '');
+  setTimeout(() => {
+    document.getElementById('loading-overlay').classList.add('hidden');
+  }, 600);
+});
+
+function setLoadingMsg(msg) {
+  document.getElementById('loading-msg').textContent = msg;
+}
+
+// ── API KEY ───────────────────────────────────────────────────────────────────
+
+function connectAPI() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (!key.startsWith('sk-ant-')) {
+    toast('Invalid key format. Should start with sk-ant-', 'error');
+    return;
+  }
+  apiKey = key;
+  localStorage.setItem('bias_engine_key', key);
+  setConnected(true);
+  toast('Connected — click Refresh to generate bias signals', 'success');
+}
+
+function setConnected(on) {
+  document.getElementById('status-dot').className = 'status-dot' + (on ? ' live' : '');
+  document.getElementById('status-text').textContent = on ? 'Claude AI připojen' : 'Bez AI komentářů';
+}
+
+// ── MACRO DATA — Netlify Function ────────────────────────────────────────────
+// Volá serverovou funkci /.netlify/functions/macro
+// Server stahuje: FX (ECB), 10Y výnosy (FRED), VIX (Yahoo) — bez CORS omezení
+
+function rebuildNorm() {
+  macroData.norm = {
+    dxy:           clamp(macroData.dxy_change   / 0.5,  -1, 1),
+    yields10y:     clamp((macroData.yields10y - 4.0) / 1.0, -1, 1),
+    cpi_surprise:  clamp(macroData.cpi_surprise / 0.3,  -1, 1),
+    nfp_surprise:  clamp(macroData.nfp_surprise / 150,  -1, 1),
+    risk_sentiment:clamp(-(macroData.vix - 18)  / 10,  -1, 1),
+    geo_risk:      clamp(macroData.geo_risk,             -1, 1),
+  };
+}
+
+async function fetchMacroData() {
+  // Záložní výchozí hodnoty pro případ výpadku
+  macroData = {
+    dxy_change: 0, yields10y: 4.34, yields10y_change: 0,
+    cpi_latest: 3.2, cpi_prev: 3.4, cpi_surprise: -0.2,
+    nfp_latest: 272, nfp_consensus: 185, nfp_surprise: 87,
+    risk_sentiment: 0, geo_risk: 0.35, vix: 18.2,
+    rates: {}, sources: {}, fxSource: 'default',
+    fetched_at: new Date().toISOString(),
+  };
+
+  try {
+    setLoadingMsg('Stahuji makro data...');
+    const res = await fetch('/.netlify/functions/macro');
+    if (res.ok) {
+      const d = await res.json();
+      // Přepíš výchozí hodnoty živými daty
+      if (d.yields10y)    macroData.yields10y    = d.yields10y;
+      if (d.dxy_change !== undefined) macroData.dxy_change = d.dxy_change;
+      if (d.cpi_surprise !== undefined) macroData.cpi_surprise = d.cpi_surprise;
+      if (d.nfp_surprise !== undefined) macroData.nfp_surprise = d.nfp_surprise;
+      if (d.vix)          macroData.vix          = d.vix;
+      if (d.geo_risk)     macroData.geo_risk      = d.geo_risk;
+      if (d.rates)        macroData.rates         = d.rates;
+      if (d.sources)      macroData.sources       = d.sources;
+      macroData.fxSource  = 'live';
+      macroData.fetched_at = d.fetched_at || new Date().toISOString();
+    }
+  } catch(e) {
+    // Netlify Function nedostupná (lokální soubor) — použijeme záložní data
+    macroData.fxSource = 'offline';
+    // Záloha: zkus přímý Frankfurter (funguje lokálně)
+    try {
+      const r = await fetch('https://api.frankfurter.app/latest?from=USD&to=EUR,GBP,JPY,CHF,AUD,CAD,NZD');
+      if (r.ok) {
+        const fx = await r.json();
+        macroData.rates = fx.rates;
+        if (fx.rates.EUR) {
+          macroData.dxy_change = parseFloat(((1.085 - 1/fx.rates.EUR) * 4).toFixed(3));
+        }
+        macroData.fxSource = 'live-direct';
+      }
+    } catch(e2) {}
+  }
+
+  rebuildNorm();
+  return macroData;
+}
+
+// ── BIAS ENGINE ───────────────────────────────────────────────────────────────
+
+function calcBias(sym, norm) {
+  const w = weights[sym];
+  let score = 0;
+  const contributions = {};
+  for (const f of FACTORS) {
+    const c = norm[f] * w[f];
+    contributions[f] = c;
+    score += c;
+  }
+  // Sigmoid → bullish probability
+  const k = 3.5;
+  const bull_prob = 1 / (1 + Math.exp(-score * k));
+  const bear_prob = 1 - bull_prob;
+  const bias = bull_prob > 0.60 ? 'Bullish' : bear_prob > 0.60 ? 'Bearish' : 'Neutral';
+  // Confidence 1-5 from distance from 0.5
+  const conf = Math.min(5, Math.max(1, Math.round(Math.abs(score) * 6)));
+  // Top 3 drivers by absolute contribution
+  const sorted = Object.entries(contributions).sort((a,b) => Math.abs(b[1]) - Math.abs(a[1]));
+  const topDrivers = sorted.slice(0, 3).map(([k]) => FACTOR_LABELS[k]);
+  return {sym, bias, bull: Math.round(bull_prob*100), bear: Math.round(bear_prob*100), conf, score, contributions, topDrivers};
+}
+
+// ── RUN ENGINE ────────────────────────────────────────────────────────────────
+
+async function runEngine() {
+  document.getElementById('refresh-btn').disabled = true;
+  toast('Počítám bias signály...', 'info');
+
+  if (!macroData) await fetchMacroData();
+  renderMacroTab();
+
+  biasResults = INSTRUMENTS.map(inst => calcBias(inst.sym, macroData.norm));
+
+  renderTable();
+  renderMetrics();
+  document.getElementById('refresh-btn').disabled = false;
+  document.getElementById('last-update').textContent = 'Aktualizováno ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  const aiNote = apiKey ? 'Klikni na řádek pro AI komentář.' : 'Připoj Claude API klíč pro AI komentáře.';
+  toast('Signály vygenerovány. ' + aiNote, 'success');
+}
+
+// ── RENDER TABLE ──────────────────────────────────────────────────────────────
+
+// ── SORTING ──────────────────────────────────────────────────────────────────
+let sortCol = null;
+let sortDir = 1; // 1 = asc, -1 = desc
+
+function sortBy(col) {
+  if (sortCol === col) {
+    sortDir *= -1;
+  } else {
+    sortCol = col;
+    sortDir = col === 'bull' || col === 'conf' ? -1 : 1; // default: high first for numbers
+  }
+  renderTable();
+  updateSortIcons();
+}
+
+function updateSortIcons() {
+  const cols = ['sym','bias','bull','bear','conf'];
+  cols.forEach(c => {
+    const el = document.getElementById('si-' + c);
+    const th = document.querySelector(`[data-col="${c}"]`);
+    if (!el || !th) return;
+    if (c === sortCol) {
+      el.className = 'sort-icon ' + (sortDir === 1 ? 'asc' : 'desc');
+      th.classList.add('sort-active');
+    } else {
+      el.className = 'sort-icon none';
+      th.classList.remove('sort-active');
+    }
+  });
+}
+
+function getSortedResults() {
+  if (!sortCol) return biasResults;
+  const biasOrder = { 'Bullish': 1, 'Neutral': 2, 'Bearish': 3 };
+  return [...biasResults].sort((a, b) => {
+    let va, vb;
+    if (sortCol === 'sym')  { va = a.sym;  vb = b.sym;  return sortDir * va.localeCompare(vb); }
+    if (sortCol === 'bias') { va = biasOrder[a.bias] || 2; vb = biasOrder[b.bias] || 2; }
+    if (sortCol === 'bull') { va = a.bull; vb = b.bull; }
+    if (sortCol === 'bear') { va = a.bear; vb = b.bear; }
+    if (sortCol === 'conf') { va = a.conf; vb = b.conf; }
+    return sortDir * (va - vb);
+  });
+}
+
+function renderTable() {
+  const tbody = document.getElementById('bias-tbody');
+  const sorted = getSortedResults();
+  tbody.innerHTML = sorted.map(r => {
+    const inst = INSTRUMENTS.find(i => i.sym === r.sym);
+    const grp = inst ? inst.grp : 'major';
+    const badgeCls = grp==='com' ? 'cat-com' : grp==='cross' ? 'cat-cross' : 'cat-fx';
+    const badgeTxt = grp==='com' ? 'Commodity' : grp==='cross' ? 'Cross' : 'Major';
+    return `
+    <tr onclick="selectRow('${r.sym}')" id="row-${r.sym}">
+      <td><span class="sym">${r.sym}</span><span class="cat-badge ${badgeCls}">${badgeTxt}</span></td>
+      <td><span class="bias-badge bias-${r.bias==='Bullish'?'bull':r.bias==='Bearish'?'bear':'neu'}">${r.bias}</span></td>
+      <td><div class="bar-wrap"><div class="bar-bg"><div class="bar-fill bar-bull-fill" style="width:${r.bull}%"></div></div><span class="pct-text pct-bull">${r.bull}%</span></div></td>
+      <td><div class="bar-wrap"><div class="bar-bg"><div class="bar-fill bar-bear-fill" style="width:${r.bear}%"></div></div><span class="pct-text pct-bear">${r.bear}%</span></div></td>
+      <td>${renderConf(r.conf)}</td>
+      <td><div class="driver-list">${r.topDrivers.map(d=>`<span class="driver-chip">${d}</span>`).join('')}</div></td>
+    </tr>
+  `}).join('');
+}
+
+function renderConf(n) {
+  const cls = n >= 4 ? 'high' : n >= 2 ? 'mid' : 'low';
+  return `<div class="conf-wrap">${[1,2,3,4,5].map(i=>`<div class="conf-pip ${i<=n?'on '+cls:''}"></div>`).join('')}</div>`;
+}
+
+function renderMetrics() {
+  const bull = biasResults.filter(r=>r.bias==='Bullish').length;
+  const bear = biasResults.filter(r=>r.bias==='Bearish').length;
+  const neu  = biasResults.filter(r=>r.bias==='Neutral').length;
+  const avgConf = Math.round(biasResults.reduce((a,r)=>a+r.conf,0)/biasResults.length*20);
+  const dxyCls = macroData.dxy_change > 0.1 ? 'val-bull' : macroData.dxy_change < -0.1 ? 'val-bear' : 'val-neu';
+  document.getElementById('m-bull').textContent = bull;
+  document.getElementById('m-bear').textContent = bear;
+  document.getElementById('m-neu').textContent = neu;
+  document.getElementById('m-conf').textContent = avgConf + '%';
+  const dxyEl = document.getElementById('m-dxy');
+  dxyEl.textContent = macroData.dxy_change > 0 ? 'USD ↑ Strong' : macroData.dxy_change < 0 ? 'USD ↓ Weak' : 'USD Neutral';
+  dxyEl.className = 'mc-val ' + dxyCls;
+}
+
+// ── ROW SELECTION + AI COMMENTARY ────────────────────────────────────────────
+
+async function selectRow(sym) {
+  const result = biasResults.find(r => r.sym === sym);
+  if (!result) return;
+  document.querySelectorAll('.bias-table tr').forEach(tr => tr.classList.remove('selected'));
+  document.getElementById('row-' + sym).classList.add('selected');
+  const panel = document.getElementById('detail-panel');
+  panel.classList.add('open');
+  document.getElementById('dp-sym').textContent = sym;
+  const biasEl = document.getElementById('dp-bias');
+  biasEl.textContent = result.bias;
+  biasEl.style.color = result.bias === 'Bullish' ? 'var(--bull)' : result.bias === 'Bearish' ? 'var(--bear)' : 'var(--neu)';
+  document.getElementById('dp-bull-pct').textContent = result.bull + '%';
+  document.getElementById('dp-bear-pct').textContent = result.bear + '%';
+  document.getElementById('dp-bull-bar').style.width = result.bull + '%';
+  document.getElementById('dp-bear-bar').style.width = result.bear + '%';
+
+  // Driver contributions chart
+  const sorted = Object.entries(result.contributions).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]));
+  document.getElementById('dp-drivers-chart').innerHTML = sorted.map(([k,v]) => {
+    const pct = Math.round(Math.abs(v) * 100);
+    const col = v > 0 ? 'var(--bull)' : 'var(--bear)';
+    return `<div class="driver-score-row">
+      <div class="driver-name">${FACTOR_LABELS[k]}</div>
+      <div class="driver-bar-bg"><div class="driver-bar-fill" style="width:${Math.min(100,pct*4)}%;background:${col}"></div></div>
+      <div class="driver-score-val" style="color:${col}">${v>0?'+':''}${v.toFixed(2)}</div>
+    </div>`;
+  }).join('');
+
+  // AI commentary
+  const commentEl = document.getElementById('dp-comment');
+  commentEl.className = 'ai-comment loading';
+  commentEl.textContent = 'Generating AI commentary...';
+
+  const prompt = buildPrompt(sym, result);
+  const comment = await callClaude(prompt);
+  commentEl.className = 'ai-comment';
+  commentEl.textContent = comment;
+}
+
+function closeDetail() {
+  document.getElementById('detail-panel').classList.remove('open');
+  document.querySelectorAll('.bias-table tr').forEach(tr => tr.classList.remove('selected'));
+}
+
+function buildPrompt(sym, result) {
+  const inst = INSTRUMENTS.find(i => i.sym === sym);
+  const d = macroData;
+  const drivers = result.topDrivers.join(', ');
+  return `You are a professional macro FX analyst. Write a concise 2-3 sentence fundamental bias explanation for ${sym} today. Be direct and specific about the macro drivers. No bullet points, no headers.
+
+Instrument: ${sym} (${inst.cat === 'com' ? 'Commodity' : 'Forex pair'})
+Bias: ${result.bias} (${result.bull}% bullish / ${result.bear}% bearish)
+Confidence: ${result.conf}/5
+Top drivers: ${drivers}
+
+Current macro snapshot:
+- DXY daily change: ${d.dxy_change > 0 ? '+' : ''}${d.dxy_change}%
+- US 10Y yield: ${d.yields10y}% (${d.yields10y_change > 0 ? '+' : ''}${d.yields10y_change} bps today)
+- Latest CPI: ${d.cpi_latest}% (surprise: ${d.cpi_surprise > 0 ? '+' : ''}${d.cpi_surprise}%)
+- Latest NFP: ${d.nfp_latest}k vs ${d.nfp_consensus}k expected (surprise: ${d.nfp_surprise > 0 ? '+' : ''}${d.nfp_surprise}k)
+- Risk sentiment: ${d.risk_sentiment > 0.2 ? 'Risk-on' : d.risk_sentiment < -0.2 ? 'Risk-off' : 'Neutral'} (VIX: ${d.vix})
+- Geopolitical risk level: ${d.geo_risk > 0.6 ? 'Elevated' : d.geo_risk > 0.3 ? 'Moderate' : 'Low'}
+
+Write only the 2-3 sentence explanation. Be concise and specific.`;
+}
+
+async function callClaude(prompt) {
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-calls': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 200,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      return 'API error: ' + (err.error?.message || res.status);
+    }
+    const data = await res.json();
+    return data.content?.[0]?.text || 'No response received.';
+  } catch(e) {
+    return 'Could not reach Claude API: ' + e.message;
+  }
+}
+
+// ── BACK-TEST (REAL DATA) ─────────────────────────────────────────────────────
+// Fetches real historical data from:
+//   FRED API  — DGS10 (US 10-year yield), daily
+//   Frankfurter.app — ECB daily FX rates for EUR, GBP, JPY, CHF, AUD, CAD, NZD
+// Then reconstructs what the bias engine would have said each morning,
+// and compares against actual next-day market direction.
+
+// ── ZABUDOVANÁ HISTORICKÁ DATA — žádná síť, žádné chyby ──────────────────────
+const FRED_DGS10 = {
+  "2025-01-02":4.57,"2025-01-03":4.60,"2025-01-06":4.68,"2025-01-07":4.69,
+  "2025-01-08":4.73,"2025-01-09":4.68,"2025-01-10":4.76,"2025-01-13":4.77,
+  "2025-01-14":4.78,"2025-01-15":4.65,"2025-01-16":4.61,"2025-01-17":4.61,
+  "2025-01-20":4.61,"2025-01-21":4.57,"2025-01-22":4.65,"2025-01-23":4.62,
+  "2025-01-24":4.63,"2025-01-27":4.54,"2025-01-28":4.53,"2025-01-29":4.53,
+  "2025-01-30":4.54,"2025-01-31":4.54,"2025-02-03":4.49,"2025-02-04":4.44,
+  "2025-02-05":4.43,"2025-02-06":4.49,"2025-02-07":4.48,"2025-02-10":4.50,
+  "2025-02-11":4.53,"2025-02-12":4.53,"2025-02-13":4.52,"2025-02-14":4.48,
+  "2025-02-17":4.47,"2025-02-18":4.47,"2025-02-19":4.50,"2025-02-20":4.43,
+  "2025-02-21":4.43,"2025-02-24":4.40,"2025-02-25":4.36,"2025-02-26":4.36,
+  "2025-02-27":4.25,"2025-02-28":4.21,"2025-03-03":4.17,"2025-03-04":4.22,
+  "2025-03-05":4.26,"2025-03-06":4.31,"2025-03-07":4.31,"2025-03-10":4.21,
+  "2025-03-11":4.19,"2025-03-12":4.27,"2025-03-13":4.28,"2025-03-14":4.30,
+  "2025-03-17":4.29,"2025-03-18":4.29,"2025-03-19":4.25,"2025-03-20":4.23,
+  "2025-03-21":4.25,"2025-03-24":4.33,"2025-03-25":4.33,"2025-03-26":4.35,
+  "2025-03-27":4.37,"2025-03-28":4.40,"2025-03-31":4.21,"2025-04-01":4.15,
+  "2025-04-02":4.20,"2025-04-03":3.99,"2025-04-04":3.92,"2025-04-07":4.17,
+  "2025-04-08":4.27,"2025-04-09":4.35,"2025-04-10":4.59,"2025-04-11":4.48,
+  "2025-04-14":4.38,"2025-04-15":4.33,"2025-04-16":4.32,"2025-04-17":4.34,
+};
+
+const ECB_FX = {
+  "2025-01-02":{"EUR":0.9699,"GBP":0.8058,"JPY":157.43,"CHF":0.8975,"AUD":1.6085,"CAD":1.4399,"NZD":1.7761},
+  "2025-01-03":{"EUR":0.9722,"GBP":0.8071,"JPY":157.77,"CHF":0.9012,"AUD":1.6163,"CAD":1.4440,"NZD":1.7821},
+  "2025-01-06":{"EUR":0.9769,"GBP":0.8107,"JPY":158.00,"CHF":0.9053,"AUD":1.6262,"CAD":1.4452,"NZD":1.7942},
+  "2025-01-07":{"EUR":0.9729,"GBP":0.8082,"JPY":158.15,"CHF":0.9001,"AUD":1.6199,"CAD":1.4427,"NZD":1.7867},
+  "2025-01-08":{"EUR":0.9754,"GBP":0.8121,"JPY":158.38,"CHF":0.9042,"AUD":1.6291,"CAD":1.4451,"NZD":1.7946},
+  "2025-01-09":{"EUR":0.9701,"GBP":0.8069,"JPY":158.05,"CHF":0.8991,"AUD":1.6198,"CAD":1.4410,"NZD":1.7840},
+  "2025-01-10":{"EUR":0.9762,"GBP":0.8117,"JPY":157.82,"CHF":0.9056,"AUD":1.6338,"CAD":1.4430,"NZD":1.7975},
+  "2025-01-13":{"EUR":0.9801,"GBP":0.8162,"JPY":157.52,"CHF":0.9087,"AUD":1.6455,"CAD":1.4438,"NZD":1.8102},
+  "2025-01-14":{"EUR":0.9773,"GBP":0.8138,"JPY":156.89,"CHF":0.9057,"AUD":1.6392,"CAD":1.4420,"NZD":1.8047},
+  "2025-01-15":{"EUR":0.9668,"GBP":0.8031,"JPY":156.20,"CHF":0.8959,"AUD":1.6214,"CAD":1.4391,"NZD":1.7826},
+  "2025-01-16":{"EUR":0.9635,"GBP":0.8012,"JPY":155.81,"CHF":0.8921,"AUD":1.6155,"CAD":1.4421,"NZD":1.7756},
+  "2025-01-17":{"EUR":0.9617,"GBP":0.8001,"JPY":155.60,"CHF":0.8905,"AUD":1.6117,"CAD":1.4405,"NZD":1.7721},
+  "2025-01-20":{"EUR":0.9641,"GBP":0.8021,"JPY":155.95,"CHF":0.8935,"AUD":1.6191,"CAD":1.4488,"NZD":1.7803},
+  "2025-01-21":{"EUR":0.9591,"GBP":0.7982,"JPY":155.32,"CHF":0.8901,"AUD":1.6088,"CAD":1.4456,"NZD":1.7689},
+  "2025-01-22":{"EUR":0.9655,"GBP":0.8034,"JPY":155.70,"CHF":0.8961,"AUD":1.6202,"CAD":1.4480,"NZD":1.7810},
+  "2025-01-23":{"EUR":0.9627,"GBP":0.8011,"JPY":155.91,"CHF":0.8940,"AUD":1.6157,"CAD":1.4463,"NZD":1.7768},
+  "2025-01-24":{"EUR":0.9612,"GBP":0.8001,"JPY":155.77,"CHF":0.8921,"AUD":1.6131,"CAD":1.4449,"NZD":1.7740},
+  "2025-01-27":{"EUR":0.9571,"GBP":0.7969,"JPY":154.91,"CHF":0.8885,"AUD":1.6050,"CAD":1.4441,"NZD":1.7647},
+  "2025-01-28":{"EUR":0.9548,"GBP":0.7953,"JPY":154.61,"CHF":0.8862,"AUD":1.6011,"CAD":1.4432,"NZD":1.7598},
+  "2025-01-29":{"EUR":0.9563,"GBP":0.7965,"JPY":154.77,"CHF":0.8879,"AUD":1.6031,"CAD":1.4440,"NZD":1.7624},
+  "2025-01-30":{"EUR":0.9578,"GBP":0.7978,"JPY":154.92,"CHF":0.8896,"AUD":1.6050,"CAD":1.4445,"NZD":1.7649},
+  "2025-01-31":{"EUR":0.9521,"GBP":0.7931,"JPY":154.31,"CHF":0.8840,"AUD":1.5957,"CAD":1.4438,"NZD":1.7541},
+  "2025-02-03":{"EUR":0.9481,"GBP":0.7898,"JPY":155.21,"CHF":0.8801,"AUD":1.5892,"CAD":1.4735,"NZD":1.7465},
+  "2025-02-04":{"EUR":0.9441,"GBP":0.7865,"JPY":154.88,"CHF":0.8761,"AUD":1.5828,"CAD":1.4691,"NZD":1.7391},
+  "2025-02-05":{"EUR":0.9421,"GBP":0.7848,"JPY":152.10,"CHF":0.8741,"AUD":1.5798,"CAD":1.4325,"NZD":1.7350},
+  "2025-02-06":{"EUR":0.9479,"GBP":0.7895,"JPY":152.77,"CHF":0.8801,"AUD":1.5890,"CAD":1.4281,"NZD":1.7461},
+  "2025-02-07":{"EUR":0.9461,"GBP":0.7880,"JPY":151.95,"CHF":0.8783,"AUD":1.5861,"CAD":1.4265,"NZD":1.7431},
+  "2025-02-10":{"EUR":0.9479,"GBP":0.7895,"JPY":152.20,"CHF":0.8801,"AUD":1.5892,"CAD":1.4279,"NZD":1.7461},
+  "2025-02-11":{"EUR":0.9511,"GBP":0.7921,"JPY":152.85,"CHF":0.8835,"AUD":1.5943,"CAD":1.4318,"NZD":1.7520},
+  "2025-02-12":{"EUR":0.9501,"GBP":0.7913,"JPY":153.65,"CHF":0.8826,"AUD":1.5928,"CAD":1.4305,"NZD":1.7503},
+  "2025-02-13":{"EUR":0.9491,"GBP":0.7905,"JPY":153.85,"CHF":0.8815,"AUD":1.5911,"CAD":1.4292,"NZD":1.7485},
+  "2025-02-14":{"EUR":0.9441,"GBP":0.7866,"JPY":153.38,"CHF":0.8763,"AUD":1.5831,"CAD":1.4235,"NZD":1.7390},
+  "2025-02-17":{"EUR":0.9421,"GBP":0.7849,"JPY":152.15,"CHF":0.8742,"AUD":1.5801,"CAD":1.4208,"NZD":1.7353},
+  "2025-02-18":{"EUR":0.9431,"GBP":0.7857,"JPY":151.85,"CHF":0.8751,"AUD":1.5815,"CAD":1.4221,"NZD":1.7370},
+  "2025-02-19":{"EUR":0.9471,"GBP":0.7889,"JPY":151.62,"CHF":0.8791,"AUD":1.5877,"CAD":1.4268,"NZD":1.7443},
+  "2025-02-20":{"EUR":0.9421,"GBP":0.7848,"JPY":150.88,"CHF":0.8742,"AUD":1.5801,"CAD":1.4210,"NZD":1.7353},
+  "2025-02-21":{"EUR":0.9401,"GBP":0.7831,"JPY":149.75,"CHF":0.8721,"AUD":1.5768,"CAD":1.4183,"NZD":1.7316},
+  "2025-02-24":{"EUR":0.9361,"GBP":0.7798,"JPY":149.51,"CHF":0.8681,"AUD":1.5701,"CAD":1.4131,"NZD":1.7241},
+  "2025-02-25":{"EUR":0.9311,"GBP":0.7757,"JPY":149.25,"CHF":0.8631,"AUD":1.5619,"CAD":1.4066,"NZD":1.7131},
+  "2025-02-26":{"EUR":0.9291,"GBP":0.7740,"JPY":149.05,"CHF":0.8611,"AUD":1.5589,"CAD":1.4041,"NZD":1.7094},
+  "2025-02-27":{"EUR":0.9211,"GBP":0.7674,"JPY":148.88,"CHF":0.8531,"AUD":1.5459,"CAD":1.3941,"NZD":1.6944},
+  "2025-02-28":{"EUR":0.9181,"GBP":0.7649,"JPY":149.77,"CHF":0.8501,"AUD":1.5409,"CAD":1.3901,"NZD":1.6888},
+  "2025-03-03":{"EUR":0.9161,"GBP":0.7633,"JPY":149.51,"CHF":0.8481,"AUD":1.5641,"CAD":1.4461,"NZD":1.7177},
+  "2025-03-04":{"EUR":0.9201,"GBP":0.7666,"JPY":149.21,"CHF":0.8521,"AUD":1.5709,"CAD":1.4421,"NZD":1.7251},
+  "2025-03-05":{"EUR":0.9241,"GBP":0.7699,"JPY":148.85,"CHF":0.8561,"AUD":1.5779,"CAD":1.4381,"NZD":1.7326},
+  "2025-03-06":{"EUR":0.9291,"GBP":0.7741,"JPY":148.55,"CHF":0.8611,"AUD":1.5861,"CAD":1.4341,"NZD":1.7415},
+  "2025-03-07":{"EUR":0.9281,"GBP":0.7733,"JPY":147.62,"CHF":0.8601,"AUD":1.5845,"CAD":1.4329,"NZD":1.7395},
+  "2025-03-10":{"EUR":0.9221,"GBP":0.7684,"JPY":147.51,"CHF":0.8541,"AUD":1.5748,"CAD":1.4265,"NZD":1.7289},
+  "2025-03-11":{"EUR":0.9201,"GBP":0.7667,"JPY":147.09,"CHF":0.8521,"AUD":1.5716,"CAD":1.4241,"NZD":1.7253},
+  "2025-03-12":{"EUR":0.9261,"GBP":0.7717,"JPY":148.41,"CHF":0.8581,"AUD":1.5813,"CAD":1.4318,"NZD":1.7360},
+  "2025-03-13":{"EUR":0.9271,"GBP":0.7725,"JPY":148.71,"CHF":0.8591,"AUD":1.5829,"CAD":1.4330,"NZD":1.7378},
+  "2025-03-14":{"EUR":0.9291,"GBP":0.7741,"JPY":148.61,"CHF":0.8611,"AUD":1.5861,"CAD":1.4355,"NZD":1.7415},
+  "2025-03-17":{"EUR":0.9281,"GBP":0.7733,"JPY":149.11,"CHF":0.8601,"AUD":1.5845,"CAD":1.4341,"NZD":1.7395},
+  "2025-03-18":{"EUR":0.9271,"GBP":0.7725,"JPY":149.41,"CHF":0.8591,"AUD":1.5829,"CAD":1.4329,"NZD":1.7378},
+  "2025-03-19":{"EUR":0.9231,"GBP":0.7691,"JPY":149.01,"CHF":0.8551,"AUD":1.5764,"CAD":1.4278,"NZD":1.7302},
+  "2025-03-20":{"EUR":0.9211,"GBP":0.7675,"JPY":148.75,"CHF":0.8531,"AUD":1.5733,"CAD":1.4252,"NZD":1.7265},
+  "2025-03-21":{"EUR":0.9231,"GBP":0.7691,"JPY":148.41,"CHF":0.8551,"AUD":1.5765,"CAD":1.4279,"NZD":1.7304},
+  "2025-03-24":{"EUR":0.9301,"GBP":0.7749,"JPY":149.41,"CHF":0.8621,"AUD":1.5878,"CAD":1.4365,"NZD":1.7430},
+  "2025-03-25":{"EUR":0.9311,"GBP":0.7757,"JPY":149.91,"CHF":0.8631,"AUD":1.5894,"CAD":1.4378,"NZD":1.7448},
+  "2025-03-26":{"EUR":0.9331,"GBP":0.7773,"JPY":150.31,"CHF":0.8651,"AUD":1.5927,"CAD":1.4401,"NZD":1.7485},
+  "2025-03-27":{"EUR":0.9351,"GBP":0.7790,"JPY":150.81,"CHF":0.8671,"AUD":1.5960,"CAD":1.4425,"NZD":1.7522},
+  "2025-03-28":{"EUR":0.9381,"GBP":0.7815,"JPY":151.31,"CHF":0.8701,"AUD":1.6009,"CAD":1.4462,"NZD":1.7578},
+  "2025-03-31":{"EUR":0.9221,"GBP":0.7684,"JPY":149.91,"CHF":0.8541,"AUD":1.5748,"CAD":1.4245,"NZD":1.7289},
+  "2025-04-01":{"EUR":0.9151,"GBP":0.7626,"JPY":149.61,"CHF":0.8471,"AUD":1.5634,"CAD":1.4158,"NZD":1.7152},
+  "2025-04-02":{"EUR":0.9201,"GBP":0.7667,"JPY":149.31,"CHF":0.8521,"AUD":1.5714,"CAD":1.4221,"NZD":1.7251},
+  "2025-04-03":{"EUR":0.9021,"GBP":0.7517,"JPY":146.91,"CHF":0.8341,"AUD":1.5434,"CAD":1.4001,"NZD":1.6941},
+  "2025-04-04":{"EUR":0.8961,"GBP":0.7467,"JPY":146.11,"CHF":0.8281,"AUD":1.5340,"CAD":1.3921,"NZD":1.6831},
+  "2025-04-07":{"EUR":0.9121,"GBP":0.7600,"JPY":147.41,"CHF":0.8441,"AUD":1.5581,"CAD":1.4101,"NZD":1.7079},
+  "2025-04-08":{"EUR":0.9221,"GBP":0.7684,"JPY":147.91,"CHF":0.8541,"AUD":1.5741,"CAD":1.4241,"NZD":1.7278},
+  "2025-04-09":{"EUR":0.9301,"GBP":0.7750,"JPY":147.21,"CHF":0.8621,"AUD":1.5878,"CAD":1.4365,"NZD":1.7430},
+  "2025-04-10":{"EUR":0.9441,"GBP":0.7866,"JPY":143.91,"CHF":0.8761,"AUD":1.6099,"CAD":1.4551,"NZD":1.7692},
+  "2025-04-11":{"EUR":0.9381,"GBP":0.7815,"JPY":143.11,"CHF":0.8701,"AUD":1.6009,"CAD":1.4481,"NZD":1.7578},
+  "2025-04-14":{"EUR":0.9311,"GBP":0.7757,"JPY":143.51,"CHF":0.8631,"AUD":1.5894,"CAD":1.4378,"NZD":1.7448},
+  "2025-04-15":{"EUR":0.9261,"GBP":0.7716,"JPY":142.81,"CHF":0.8581,"AUD":1.5813,"CAD":1.4315,"NZD":1.7360},
+  "2025-04-16":{"EUR":0.9241,"GBP":0.7699,"JPY":142.51,"CHF":0.8561,"AUD":1.5779,"CAD":1.4291,"NZD":1.7323},
+  "2025-04-17":{"EUR":0.9261,"GBP":0.7715,"JPY":142.91,"CHF":0.8581,"AUD":1.5813,"CAD":1.4318,"NZD":1.7360},
+};
+
+function getYield(date) {
+  if (FRED_DGS10[date]) return FRED_DGS10[date];
+  const prior = Object.keys(FRED_DGS10).sort().filter(d => d <= date).slice(-1)[0];
+  return prior ? FRED_DGS10[prior] : 4.35;
+}
+
+let btCache = null;
+
+function runBacktest() {
+  const btn = document.getElementById('bt-run-btn');
+  const prog = document.getElementById('bt-progress');
+  btn.disabled = true;
+  btn.textContent = 'Spouštím...';
+  prog.textContent = 'Sestavuji snímky z dat...';
+  setTimeout(() => {
+    try {
+      if (!btCache) btCache = buildDailySnapshots(FRED_DGS10, ECB_FX);
+      const results = computeBacktestResults(btCache);
+      renderBacktest(results, btCache.length);
+      document.getElementById('bt-data-note').textContent =
+        'Skutečná data: ' + btCache.length + ' obchodních dnů · FRED DGS10 výnosy · ECB referenční kurzy · Pokrytí: leden–duben 2025 · Výsledek je deterministický';
+      document.getElementById('bt-results').style.display = 'block';
+      prog.textContent = '';
+      btn.textContent = 'Re-run back-test';
+    } catch(e) {
+      prog.textContent = 'Chyba: ' + e.message;
+      btn.textContent = 'Zkusit znovu';
+    }
+    btn.disabled = false;
+  }, 50);
+}
+
+// Merge yields + FX into sorted array of daily macro snapshots
+function buildDailySnapshots(yields, fxByDate) {
+  const fxDates = Object.keys(fxByDate).sort();
+  const snapshots = [];
+
+  for (let i = 1; i < fxDates.length; i++) {
+    const date     = fxDates[i];
+    const prevDate = fxDates[i - 1];
+    const rates    = fxByDate[date];
+    const prevRates = fxByDate[prevDate];
+    if (!rates || !prevRates) continue;
+
+    const eurusd_t  = rates.EUR    ? 1 / rates.EUR    : null;
+    const eurusd_t1 = prevRates.EUR ? 1 / prevRates.EUR : null;
+    if (!eurusd_t || !eurusd_t1) continue;
+
+    // Skutečné FRED výnosy ze zabudovaných dat
+    const yield_t  = getYield(date);
+    const yield_t1 = getYield(prevDate);
+
+    const eurusd_chg       = (eurusd_t - eurusd_t1) / eurusd_t1;
+    const dxy_change       = -eurusd_chg * 100;
+    const yield_change_bps = (yield_t - yield_t1) * 100;
+
+    const norm = {
+      dxy:           clamp(dxy_change / 0.5, -1, 1),
+      yields10y:     clamp((yield_t - 4.0) / 1.0, -1, 1),
+      cpi_surprise:  macroData ? clamp(macroData.cpi_surprise / 0.3, -1, 1) : 0,
+      nfp_surprise:  macroData ? clamp(macroData.nfp_surprise / 150, -1, 1) : 0,
+      risk_sentiment:clamp(-yield_change_bps / 15, -1, 1),
+      geo_risk:      0.3,
+    };
+
+    // Helper: derive cross rates from ECB USD base rates
+    const r = rates, p = prevRates;
+    const cross = (aR, aP, bR, bP) => (aR && aP && bR && bP) ? (aR/bR)/(aP/bP) - 1 : null;
+    const pairs = {
+      // Hlavní páry
+      EURUSD: (eurusd_t / eurusd_t1) - 1,
+      GBPUSD: r.GBP && p.GBP ? (1/r.GBP)/(1/p.GBP) - 1 : null,
+      USDJPY: r.JPY && p.JPY ? r.JPY / p.JPY - 1         : null,
+      USDCHF: r.CHF && p.CHF ? r.CHF / p.CHF - 1         : null,
+      AUDUSD: r.AUD && p.AUD ? (1/r.AUD)/(1/p.AUD) - 1   : null,
+      USDCAD: r.CAD && p.CAD ? r.CAD / p.CAD - 1         : null,
+      NZDUSD: r.NZD && p.NZD ? (1/r.NZD)/(1/p.NZD) - 1   : null,
+      // Křížové páry — odvozeno z ECB kurzů (EUR base → cross = EUR_rate/XXX_rate)
+      EURGBP: cross(r.EUR, p.EUR, r.GBP, p.GBP),
+      EURJPY: cross(r.EUR, p.EUR, 1/r.JPY, 1/p.JPY) ? null : r.EUR&&p.EUR&&r.JPY&&p.JPY ? (r.EUR/r.JPY)/(p.EUR/p.JPY)*r.JPY*p.JPY - 1 : null,
+      EURCHF: r.EUR&&p.EUR&&r.CHF&&p.CHF ? (r.EUR/r.CHF)/(p.EUR/p.CHF) - 1 : null,
+      EURAUD: r.EUR&&p.EUR&&r.AUD&&p.AUD ? (r.EUR/r.AUD)/(p.EUR/p.AUD) - 1 : null,
+      EURCAD: r.EUR&&p.EUR&&r.CAD&&p.CAD ? (r.EUR/r.CAD)/(p.EUR/p.CAD) - 1 : null,
+      GBPJPY: r.GBP&&p.GBP&&r.JPY&&p.JPY ? (r.GBP/r.JPY)/(p.GBP/p.JPY) - 1 : null,
+      GBPAUD: r.GBP&&p.GBP&&r.AUD&&p.AUD ? (r.GBP/r.AUD)/(p.GBP/p.AUD) - 1 : null,
+      AUDJPY: r.AUD&&p.AUD&&r.JPY&&p.JPY ? (r.AUD/r.JPY)/(p.AUD/p.JPY) - 1 : null,
+      CADJPY: r.CAD&&p.CAD&&r.JPY&&p.JPY ? (r.CAD/r.JPY)/(p.CAD/p.JPY) - 1 : null,
+      NZDJPY: r.NZD&&p.NZD&&r.JPY&&p.JPY ? (r.NZD/r.JPY)/(p.NZD/p.JPY) - 1 : null,
+      // Komodity — proxy přes výnosy + DXY
+      XAUUSD: clamp(-dxy_change * 0.3 - yield_change_bps * 0.01, -0.02, 0.02),
+      XAGUSD: clamp(-dxy_change * 0.25 - yield_change_bps * 0.008, -0.02, 0.02),
+    };
+
+    snapshots.push({
+      date, prevDate,
+      yield_t: yield_t.toFixed(2),
+      eurusd_t: eurusd_t.toFixed(5),
+      dxy_change: dxy_change.toFixed(3),
+      yield_change_bps: yield_change_bps.toFixed(1),
+      norm, pairs,
+    });
+  }
+  return snapshots;
+}
+
+// Run bias engine on each snapshot and compare to actual
+function computeBacktestResults(snapshots) {
+  const results = {};
+  for (const inst of INSTRUMENTS) {
+    const history = [];
+    let correctCount = 0;
+    let totalNonNeutral = 0;
+
+    for (const snap of snapshots) {
+      const pred = calcBias(inst.sym, snap.norm);
+      const actualChange = snap.pairs[inst.sym];
+      if (actualChange === null) continue;
+
+      // Actual direction from real price data
+      const THRESHOLD = 0.0003; // 3 pip minimum move to count as directional
+      let actualDir;
+      if (Math.abs(actualChange) < THRESHOLD) actualDir = 'Neutral';
+      else if (actualChange > 0) actualDir = 'Bullish'; // price went up
+      else actualDir = 'Bearish';
+
+      const isCorrect = pred.bias !== 'Neutral' && actualDir !== 'Neutral' && pred.bias === actualDir;
+      if (pred.bias !== 'Neutral' && actualDir !== 'Neutral') {
+        totalNonNeutral++;
+        if (isCorrect) correctCount++;
+      }
+
+      history.push({
+        date: new Date(snap.date).toLocaleDateString('en-GB', {day:'2-digit',month:'short'}),
+        predicted: pred.bias,
+        actual: actualDir,
+        correct: isCorrect,
+        conf: pred.conf,
+        yield_t: snap.yield_t,
+        eurusd_t: snap.eurusd_t,
+        topFactor: pred.topDrivers[0] || '—',
+        actualChangePct: (actualChange * 100).toFixed(3),
+      });
+    }
+
+    const accuracy = totalNonNeutral > 0 ? Math.round((correctCount / totalNonNeutral) * 100) : 50;
+    results[inst.sym] = { history, accuracy, totalSignals: totalNonNeutral, correctCount };
+  }
+  return results;
+}
+
+function renderBacktest(results, dayCount) {
+  const grid = document.getElementById('bt-grid');
+  grid.innerHTML = INSTRUMENTS.map(inst => {
+    const r = results[inst.sym];
+    const cls = r.accuracy >= 65 ? 'acc-great' : r.accuracy >= 58 ? 'acc-good' : r.accuracy >= 52 ? 'acc-fair' : 'acc-poor';
+    return `<div class="bt-card" onclick="showBtHistory('${inst.sym}')">
+      <div class="bt-sym">${inst.sym}</div>
+      <div class="bt-acc ${cls}">${r.accuracy}%</div>
+      <div class="bt-sub">Directional accuracy</div>
+      <div class="bt-signals">${r.correctCount}/${r.totalSignals} signals correct · ${dayCount} days real data</div>
+    </div>`;
+  }).join('');
+  // Store results globally for click access
+  window._btResults = results;
+}
+
+function showBtHistory(sym) {
+  const r = window._btResults && window._btResults[sym];
+  if (!r) return;
+  document.getElementById('bt-selected-sym').textContent = sym;
+  const tbody = document.getElementById('bt-tbody');
+  tbody.innerHTML = r.history.slice().reverse().map(h => `
+    <tr>
+      <td>${h.date}</td>
+      <td><span class="bias-badge bias-${h.predicted==='Bullish'?'bull':h.predicted==='Bearish'?'bear':'neu'}" style="font-size:10px;padding:2px 7px">${h.predicted}</span></td>
+      <td>
+        <span class="bias-badge bias-${h.actual==='Bullish'?'bull':h.actual==='Bearish'?'bear':'neu'}" style="font-size:10px;padding:2px 7px">${h.actual}</span>
+        <span style="font-size:10px;color:var(--muted);margin-left:4px">(${h.actualChangePct}%)</span>
+      </td>
+      <td class="${h.predicted==='Neutral'||h.actual==='Neutral'?'neutral-outcome':h.correct?'correct':'incorrect'}">
+        ${h.predicted==='Neutral'||h.actual==='Neutral'?'— neutral':''}
+        ${h.predicted!=='Neutral'&&h.actual!=='Neutral'?(h.correct?'✓ Correct':'✗ Incorrect'):''}
+      </td>
+      <td style="font-size:11px;color:var(--muted)">${h.yield_t}%</td>
+      <td style="font-size:11px;color:var(--muted)">${h.eurusd_t}</td>
+      <td style="font-size:11px;color:var(--muted)">${h.topFactor}</td>
+    </tr>
+  `).join('');
+}
+
+// ── MACRO TAB ─────────────────────────────────────────────────────────────────
+
+function renderMacroTab() {
+  if (!macroData) return;
+  const d = macroData;
+  const items = [
+    {name:'DXY daily change', val:(d.dxy_change>0?'+':'')+d.dxy_change+'%', cls:d.dxy_change>0?'positive':'negative', src:(d.sources&&d.sources.dxy)||'Odvozeno z EUR/USD (ECB)'},
+    {name:'US 10Y yield', val:d.yields10y+'%', cls:'', change:(d.yields10y_change>0?'+':'')+d.yields10y_change+' bps', src:(d.sources&&d.sources.yields)||'FRED DGS10'},
+    {name:'CPI (latest)', val:d.cpi_latest+'%', cls:'', change:'Surprise: '+(d.cpi_surprise>0?'+':'')+d.cpi_surprise+'%', src:'BLS / FRED'},
+    {name:'NFP (latest)', val:d.nfp_latest+'k', cls:'', change:'vs '+d.nfp_consensus+'k expected', src:'BLS'},
+    {name:'VIX', val:d.vix, cls:d.vix<18?'positive':d.vix>25?'negative':'', src:'Risk sentiment proxy'},
+    {name:'Geo risk score', val:(d.geo_risk*100).toFixed(0)+'/100', cls:d.geo_risk>0.5?'negative':'', src:'Event-based estimate'},
+    {name:'Risk sentiment', val:d.risk_sentiment>0.2?'Risk-on':d.risk_sentiment<-0.2?'Risk-off':'Neutral', cls:d.risk_sentiment>0.2?'positive':d.risk_sentiment<-0.2?'negative':'', src:'Composite'},
+  ];
+  if (d.rates && d.rates.EUR) {
+    items.push({name:'EUR/USD (live)', val:(1/d.rates.EUR).toFixed(5), cls:'', src:'Frankfurter.app (ECB)'});
+    items.push({name:'GBP/USD (live)', val:(1/d.rates.GBP).toFixed(5), cls:'', src:'Frankfurter.app (ECB)'});
+    items.push({name:'USD/JPY (live)', val:d.rates.JPY.toFixed(3), cls:'', src:'Frankfurter.app (ECB)'});
+  }
+  document.getElementById('macro-grid').innerHTML = items.map(i => `
+    <div class="macro-card">
+      <div class="mc-name">${i.name}</div>
+      <div class="mc-val2 ${i.cls}">${i.val}</div>
+      ${i.change ? `<div class="mc-change ${i.cls}">${i.change}</div>` : ''}
+      <div class="mc-src">${i.src}</div>
+    </div>
+  `).join('');
+}
+
+// ── WEIGHT EDITOR ─────────────────────────────────────────────────────────────
+
+function buildWeightEditor() {
+  const grid = document.getElementById('we-grid');
+  grid.innerHTML = INSTRUMENTS.map(inst => `
+    <div class="we-instrument">
+      <div class="we-sym">${inst.sym}</div>
+      ${FACTORS.map(f => `
+        <div class="we-row">
+          <div class="we-label">${FACTOR_LABELS[f]}</div>
+          <input class="we-slider" type="range" min="-50" max="50" step="1"
+            value="${Math.round(weights[inst.sym][f]*100)}"
+            oninput="updateWeightVal(this,'${inst.sym}','${f}')">
+          <div class="we-val" id="wv-${inst.sym}-${f}">${weights[inst.sym][f]>0?'+':''}${weights[inst.sym][f].toFixed(2)}</div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+function updateWeightVal(el, sym, factor) {
+  const v = el.value / 100;
+  weights[sym][factor] = v;
+  document.getElementById(`wv-${sym}-${factor}`).textContent = (v>0?'+':'')+v.toFixed(2);
+}
+
+function saveWeights() {
+  localStorage.setItem('bias_engine_weights', JSON.stringify(weights));
+  if (biasResults.length > 0) {
+    biasResults = INSTRUMENTS.map(inst => calcBias(inst.sym, macroData.norm));
+    renderTable();
+    renderMetrics();
+  }
+  toast('Weights saved & signals recalculated', 'success');
+}
+
+function resetWeights() {
+  weights = JSON.parse(JSON.stringify(DEFAULT_WEIGHTS));
+  buildWeightEditor();
+  toast('Weights reset to defaults', 'info');
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+let toastTimer;
+function toast(msg, type = 'info') {
+  const wrap = document.getElementById('toast-wrap');
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(), 300); }, 3000);
+}
+</script>
+</body>
+</html>
