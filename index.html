@@ -995,19 +995,11 @@ Write only the 2-3 sentence explanation. Be concise and specific.`;
 async function callClaude(prompt) {
   if (!apiKey) return 'Zadej Claude API klíč pro AI komentáře.';
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    // Voláme serverovou proxy funkci — žádné CORS omezení
+    const res = await fetch('/.netlify/functions/claude', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-calls': 'true',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 250,
-        messages: [{ role: 'user', content: prompt }]
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey, prompt }),
     });
     if (!res.ok) {
       let msg = res.status;
@@ -1017,7 +1009,7 @@ async function callClaude(prompt) {
     const data = await res.json();
     return data.content?.[0]?.text || 'Prázdná odpověď.';
   } catch(e) {
-    return 'Nelze se připojit ke Claude API. Zkontroluj zda je API klíč správný a máš přístup k internetu.';
+    return 'Chyba při volání AI: ' + e.message;
   }
 }
 
@@ -1379,13 +1371,11 @@ async function runTechnical() {
 
   try {
     if (!techCache) {
-      // Stáhni 90 dnů ECB historických dat
-      const end = new Date(); end.setDate(end.getDate() - 1);
-      const start = new Date(); start.setDate(end.getDate() - 100);
-      const url = `https://api.frankfurter.app/${start.toISOString().slice(0,10)}..${end.toISOString().slice(0,10)}?from=USD&to=EUR,GBP,JPY,CHF,AUD,CAD,NZD`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('Frankfurter: ' + res.status);
+      // Voláme serverovou funkci — žádné CORS omezení
+      const res = await fetch('/.netlify/functions/techdata');
+      if (!res.ok) throw new Error('Techdata: ' + res.status);
       const data = await res.json();
+      if (data.error) throw new Error(data.error);
       techCache = data.rates;
     }
     status.textContent = 'Počítám indikátory...';
