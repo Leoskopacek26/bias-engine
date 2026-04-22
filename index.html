@@ -641,9 +641,8 @@ let apiKey = localStorage.getItem('bias_engine_key') || '';
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 
-window.addEventListener('load', async () => {
-  try {
-  setLoadingMsg('Loading saved settings...');
+window.addEventListener('load', () => {
+  // 1. Načti nastavení okamžitě
   if (apiKey) {
     document.getElementById('api-key-input').value = apiKey;
     setConnected(true);
@@ -651,26 +650,41 @@ window.addEventListener('load', async () => {
   const saved = localStorage.getItem('bias_engine_weights');
   if (saved) { try { weights = JSON.parse(saved); } catch(e){} }
   updateSortIcons();
-  setLoadingMsg('Fetching macro data...');
-  await fetchMacroData();
-  renderMacroTab();
-  // Auto-run engine so dashboard is populated immediately
+
+  // 2. Vykresli dashboard okamžitě se záložními daty
   biasResults = INSTRUMENTS.map(inst => calcBias(inst.sym, macroData.norm));
   renderTable();
   renderMetrics();
-  // Update status to show data source
-  const src = macroData.fxSource === 'live' ? 'Živá data ✓'
-    : macroData.fxSource === 'live-direct' ? 'Částečná živá data'
-    : 'Záložní data';
-  document.getElementById('status-text').textContent = src;
-  document.getElementById('status-dot').className = 'status-dot' + (macroData.fxSource.startsWith('live') ? ' live' : '');
-  } catch(initErr) {
-    console.error('Init error:', initErr);
-  }
-  setTimeout(() => {
-    document.getElementById('loading-overlay').classList.add('hidden');
-  }, 600);
+  renderMacroTab();
+
+  // 3. Skryj loading overlay HNED — nezávisí na síti
+  document.getElementById('loading-overlay').classList.add('hidden');
+
+  // 4. Načti živá data NA POZADÍ — neblokuje UI
+  loadLiveDataBackground();
 });
+
+async function loadLiveDataBackground() {
+  document.getElementById('status-text').textContent = 'Načítám data...';
+  try {
+    await fetchMacroData();
+    // Přepočítej s živými daty
+    biasResults = INSTRUMENTS.map(inst => calcBias(inst.sym, macroData.norm));
+    renderTable();
+    renderMetrics();
+    renderMacroTab();
+    const src = macroData.fxSource === 'live' ? 'Živá data ✓'
+      : macroData.fxSource === 'live-direct' ? 'Částečná živá data'
+      : 'Záložní data';
+    document.getElementById('status-text').textContent = src;
+    document.getElementById('status-dot').className = 'status-dot' + (macroData.fxSource.startsWith('live') ? ' live' : '');
+    document.getElementById('last-update').textContent =
+      'Aktualizováno ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  } catch(e) {
+    document.getElementById('status-text').textContent = 'Záložní data';
+    console.error('Background data load failed:', e);
+  }
+}
 
 function setLoadingMsg(msg) {
   document.getElementById('loading-msg').textContent = msg;
@@ -733,7 +747,7 @@ async function fetchMacroData() {
 
   try {
     setLoadingMsg('Stahuji makro data...');
-    const res = await fetchWithTimeout('/.netlify/functions/macro', 10000);
+    const res = await fetchWithTimeout('/.netlify/functions/macro', 8000);
     if (res.ok) {
       const d = await res.json();
       if (d.yields10y)              macroData.yields10y      = d.yields10y;
@@ -757,7 +771,7 @@ async function fetchMacroData() {
     macroData.fxSource = 'offline';
     // Záloha: přímý Frankfurter s krátkým timeoutem
     try {
-      const r = await fetchWithTimeout('https://api.frankfurter.app/latest?from=USD&to=EUR,GBP,JPY,CHF,AUD,CAD,NZD', 6000);
+      const r = await fetchWithTimeout('https://api.frankfurter.app/latest?from=USD&to=EUR,GBP,JPY,CHF,AUD,CAD,NZD', 4000);
       if (r.ok) {
         const fx = await r.json();
         macroData.rates = fx.rates;
