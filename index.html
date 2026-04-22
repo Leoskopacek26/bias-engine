@@ -759,6 +759,7 @@ async function fetchMacroData() {
     if (res.ok) {
       const d = await res.json();
       if (d.yields10y)              macroData.yields10y      = d.yields10y;
+      if (d.yields10y_prev)         macroData.yields10y_prev = d.yields10y_prev;
       if (d.dxy_change !== undefined) macroData.dxy_change   = d.dxy_change;
       if (d.cpi_surprise !== undefined) macroData.cpi_surprise = d.cpi_surprise;
       if (d.nfp_surprise !== undefined) macroData.nfp_surprise = d.nfp_surprise;
@@ -772,6 +773,15 @@ async function fetchMacroData() {
       if (d.nfp_actual)             macroData.nfp_actual      = d.nfp_actual;
       if (d.nfp_consensus)          macroData.nfp_consensus   = d.nfp_consensus;
       if (d.cpi_actual)             macroData.cpi_actual      = d.cpi_actual;
+      if (d.cb_rates)               macroData.cb_rates        = d.cb_rates;
+      if (d.pair_biases)            macroData.pair_biases         = d.pair_biases;
+      if (d.currency_confidence)    macroData.currency_confidence = d.currency_confidence;
+      if (d.regime_weights)         macroData.regime_weights      = d.regime_weights;
+      if (d.dxy_trend_3d !== undefined) macroData.dxy_trend_3d    = d.dxy_trend_3d;
+      if (d.market_regime)          macroData.market_regime   = d.market_regime;
+      if (d.dxy_trend_5d !== undefined) macroData.dxy_trend_5d = d.dxy_trend_5d;
+      if (d.yields_10y)             macroData.yields_10y_ccy  = d.yields_10y;
+      if (d.cb_rates)               macroData.cb_rates        = d.cb_rates;
       macroData.fxSource  = 'live';
       macroData.fetched_at = d.fetched_at || new Date().toISOString();
     }
@@ -799,7 +809,29 @@ async function fetchMacroData() {
 // ── BIAS ENGINE ───────────────────────────────────────────────────────────────
 
 function calcBias(sym, norm) {
+  // Pokud máme serverové pair biases (multi-měnový model), použij je
+  if (macroData && macroData.pair_biases && macroData.pair_biases[sym]) {
+    const pb = macroData.pair_biases[sym];
+    const bull_prob = pb.bull / 100;
+    const bear_prob = pb.bear / 100;
+    // Drivers ze serverového modelu
+    const drivers = pb.drivers || [];
+    const contributions = { server_model: pb.score_diff || 0 };
+    return {
+      sym,
+      bias: pb.bias,
+      bull: pb.bull,
+      bear: pb.bear,
+      conf: pb.conf,
+      score: pb.score_diff || 0,
+      contributions,
+      topDrivers: drivers,
+    };
+  }
+
+  // Fallback: původní US-centrický model
   const w = weights[sym];
+  if (!w) return { sym, bias:'Neutral', bull:50, bear:50, conf:1, score:0, contributions:{}, topDrivers:[] };
   let score = 0;
   const contributions = {};
   for (const f of FACTORS) {
@@ -807,16 +839,27 @@ function calcBias(sym, norm) {
     contributions[f] = c;
     score += c;
   }
-  // Sigmoid → bullish probability
+  const dxy = norm.dxy || 0;
+  const USD_CONTEXT = {
+    EURJPY:+0.35, EURCHF:+0.25, EURGBP:+0.10,
+    GBPJPY:+0.28, AUDJPY:+0.22, CADJPY:+0.25,
+    NZDJPY:+0.20, EURAUD:-0.10, EURCAD:-0.06, GBPAUD:-0.15,
+  };
+  if (USD_CONTEXT[sym] !== undefined) {
+    const correction = USD_CONTEXT[sym] * (-dxy);
+    score += correction;
+    contributions['usd_context'] = correction;
+  }
   const k = 3.5;
   const bull_prob = 1 / (1 + Math.exp(-score * k));
   const bear_prob = 1 - bull_prob;
   const bias = bull_prob > 0.60 ? 'Bullish' : bear_prob > 0.60 ? 'Bearish' : 'Neutral';
-  // Confidence 1-5 from distance from 0.5
   const conf = Math.min(5, Math.max(1, Math.round(Math.abs(score) * 6)));
-  // Top 3 drivers by absolute contribution
   const sorted = Object.entries(contributions).sort((a,b) => Math.abs(b[1]) - Math.abs(a[1]));
-  const topDrivers = sorted.slice(0, 3).map(([k]) => FACTOR_LABELS[k]);
+  const topDrivers = sorted.slice(0, 3).map(([k]) => {
+    if (k === 'usd_context') return 'USD kontext';
+    return FACTOR_LABELS[k] || k;
+  });
   return {sym, bias, bull: Math.round(bull_prob*100), bear: Math.round(bear_prob*100), conf, score, contributions, topDrivers};
 }
 
@@ -1379,12 +1422,26 @@ function showBtHistory(sym) {
 function renderMacroTab() {
   if (!macroData) return;
   const d = macroData;
+  const cb = d.cb_rates || {};
+  const cs = d.currency_scores || {};
   const items = [
     {name:'DXY daily change', val:(d.dxy_change>0?'+':'')+d.dxy_change+'%', cls:d.dxy_change>0?'positive':'negative', src:(d.sources&&d.sources.dxy)||'Odvozeno z EUR/USD (ECB)'},
     {name:'US 10Y yield', val:d.yields10y+'%', cls:'', change:(d.yields10y_change>0?'+':'')+d.yields10y_change+' bps', src:(d.sources&&d.sources.yields)||'FRED DGS10'},
     {name:'CPI (latest)', val:d.cpi_latest+'%', cls:'', change:'Surprise: '+(d.cpi_surprise>0?'+':'')+d.cpi_surprise+'%', src:'BLS / FRED'},
     {name:'NFP (latest)', val:d.nfp_latest+'k', cls:'', change:'vs '+d.nfp_consensus+'k expected', src:'BLS'},
-    {name:'VIX', val:d.vix, cls:d.vix<18?'positive':d.vix>25?'negative':'', src:'Risk sentiment proxy'},
+    {name:'VIX', val:d.vix, cls:d.vix<18?'positive':d.vix>25?'negative':'', src:'Yahoo Finance'},
+    {name:'Market regime', val:d.market_regime||'Neutral', cls:'', src:'VIX + yield dispersion'},
+    {name:'Regime weights', val:'S:'+(d.regime_weights?Math.round(d.regime_weights.s*100)+'% ':33+'%')+'C:'+(d.regime_weights?Math.round(d.regime_weights.c*100)+'%':33+'%')+' M:'+(d.regime_weights?Math.round(d.regime_weights.m*100)+'%':34+'%'), cls:'', src:'Dynamic per regime'},
+    {name:'DXY 5D trend', val:(d.dxy_trend_5d>0?'+':'')+d.dxy_trend_5d+'%', cls:d.dxy_trend_5d>0.5?'positive':d.dxy_trend_5d<-0.5?'negative':'', src:'EUR/USD 5-day'},
+    {name:'Fed rate (USD)', val:(cb.USD||4.33)+'%', cls:'', src:'FRED FEDFUNDS'},
+    {name:'ECB rate (EUR)', val:(cb.EUR||2.50)+'%', cls:'', src:'FRED ECBDFR'},
+    {name:'BoE rate (GBP)', val:(cb.GBP||4.50)+'%', cls:'', src:'FRED BOERUKQ'},
+    {name:'BoJ rate (JPY)', val:(cb.JPY||0.50)+'%', cls:'', src:'FRED BoJ'},
+    {name:'RBA rate (AUD)', val:(cb.AUD||4.10)+'%', cls:'', src:'FRED RBA'},
+    {name:'BoC rate (CAD)', val:(cb.CAD||2.75)+'%', cls:'', src:'FRED BoC'},
+    {name:'Skore EUR', val:(cs.EUR>=0?'+':'')+cs.EUR, cls:cs.EUR>15?'positive':cs.EUR<-15?'negative':'', src:'Multi-CCY model'},
+    {name:'Skore JPY', val:(cs.JPY>=0?'+':'')+cs.JPY, cls:cs.JPY>15?'positive':cs.JPY<-15?'negative':'', src:'Multi-CCY model'},
+    {name:'Skore GBP', val:(cs.GBP>=0?'+':'')+cs.GBP, cls:cs.GBP>15?'positive':cs.GBP<-15?'negative':'', src:'Multi-CCY model'},
     {name:'Geo risk score', val:(d.geo_risk*100).toFixed(0)+'/100', cls:d.geo_risk>0.5?'negative':'', src:'Event-based estimate'},
     {name:'Risk sentiment', val:d.risk_sentiment>0.2?'Risk-on':d.risk_sentiment<-0.2?'Risk-off':'Neutral', cls:d.risk_sentiment>0.2?'positive':d.risk_sentiment<-0.2?'negative':'', src:'Composite'},
   ];
