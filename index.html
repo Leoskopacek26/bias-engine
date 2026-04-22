@@ -634,7 +634,24 @@ const DEFAULT_WEIGHTS = {
 };
 
 let weights = JSON.parse(JSON.stringify(DEFAULT_WEIGHTS));
-let macroData = null;
+
+// macroData inicializováno okamžitě se záložními hodnotami — nikdy null
+let macroData = {
+  dxy_change: 0, yields10y: 4.28, yields10y_change: 0,
+  cpi_latest: 2.4, cpi_prev: 2.8, cpi_surprise: -0.2,
+  nfp_latest: 228, nfp_consensus: 140, nfp_surprise: 88,
+  risk_sentiment: 0, geo_risk: 0.50, vix: 27.0,
+  rates: {}, sources: {}, fxSource: 'default',
+  currency_scores: { USD:0, EUR:0, GBP:0, JPY:0, CHF:0, AUD:0, CAD:0, NZD:0 },
+  strong_ccys: [], weak_ccys: [],
+  nfp_actual: 228, nfp_consensus: 140, cpi_actual: 2.4,
+  fetched_at: new Date().toISOString(),
+  norm: {
+    dxy: 0, yields10y: 0.28, cpi_surprise: -0.67,
+    nfp_surprise: 0.59, risk_sentiment: -0.75, geo_risk: 0.50,
+  },
+};
+
 let biasResults = [];
 let selectedRow = null;
 let apiKey = localStorage.getItem('bias_engine_key') || '';
@@ -725,18 +742,9 @@ function rebuildNorm() {
 }
 
 async function fetchMacroData() {
-  // Záložní výchozí hodnoty pro případ výpadku
-  macroData = {
-    dxy_change: 0, yields10y: 4.34, yields10y_change: 0,
-    cpi_latest: 3.2, cpi_prev: 3.4, cpi_surprise: -0.2,
-    nfp_latest: 272, nfp_consensus: 185, nfp_surprise: 87,
-    risk_sentiment: 0, geo_risk: 0.35, vix: 18.2,
-    rates: {}, sources: {}, fxSource: 'default',
-    currency_scores: { USD:0, EUR:0, GBP:0, JPY:0, CHF:0, AUD:0, CAD:0, NZD:0 },
-    strong_ccys: [], weak_ccys: [],
-    nfp_actual: 228, nfp_consensus: 140, cpi_actual: 2.4,
-    fetched_at: new Date().toISOString(),
-  };
+  // macroData je už inicializováno — jen reset fxSource
+  macroData.fxSource = 'default';
+  macroData.fetched_at = new Date().toISOString();
 
   // Pomocná funkce pro fetch s timeoutem
   const fetchWithTimeout = (url, ms=8000) => {
@@ -1607,21 +1615,32 @@ STYLE: Be concise, precise, trader-focused. No generic explanations. No theory. 
 
 function renderTradeFilterOutput(text) {
   const output = document.getElementById('tf-output');
-  // Jednoduché renderování — zachovej strukturu textu, obarvi klíčová slova
-  const html = text
-    .replace(/^(\d+\.\s*.+)$/gm, '<div class="tf-section-title">$1</div>')
-    .replace(/^[-*]\s+\*\*(.+?)\*\*(.*)$/gm, '<div style="margin:4px 0"><span style="color:var(--text);font-weight:500">$1</span>$2</div>')
-    .replace(/\*\*(.+?)\*\*/g, '<span style="color:var(--text);font-weight:500">$1</span>')
+  const lines = text.split('\n');
+  let html = '';
+  for (const line of lines) {
+    const t = line.trim();
+    if (!t) { html += '<div style="height:8px"></div>'; continue; }
+    // Nadpis sekce: začíná číslicí a tečkou
+    if (t.length > 2 && t[1] === '.' && t[0] >= '1' && t[0] <= '9') {
+      html += '<div class="tf-section-title">' + esc(t) + '</div>';
+    // Odrážka
+    } else if (t[0] === '-' || t[0] === '*') {
+      html += '<div style="font-size:12px;color:var(--muted);margin:3px 0;padding-left:8px">· ' + fmtLine(t.slice(1).trim()) + '</div>';
+    } else {
+      html += '<div style="font-size:12px;margin:2px 0">' + fmtLine(t) + '</div>';
+    }
+  }
+  output.innerHTML = '<div style="line-height:1.9;color:var(--text)">' + html + '</div>';
+}
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function fmtLine(s) {
+  return s
     .replace(/Bullish/g, '<span class="bias-badge bias-bull" style="font-size:10px;padding:1px 6px">Bullish</span>')
     .replace(/Bearish/g, '<span class="bias-badge bias-bear" style="font-size:10px;padding:1px 6px">Bearish</span>')
-    .replace(/Quality score:\s*(\d+)\/10/g, '<span style="color:var(--gold)">Quality: $1/10</span>')
-    .replace(/^[-*]\s+(.+)$/gm, '<div style="font-size:12px;color:var(--muted);margin:3px 0;padding-left:8px">· $1</div>')
-    .replace(/
-
-/g, '<div style="height:12px"></div>')
-    .replace(/
-/g, '');
-  output.innerHTML = '<div style="font-size:12px;line-height:1.9;color:var(--text)">' + html + '</div>';
+    .replace(/Quality score: ?(\d+)\/10/g, '<span style="color:var(--gold)">Quality: $1/10</span>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 }
 
 function toast(msg, type = 'info') {
