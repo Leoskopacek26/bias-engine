@@ -329,6 +329,30 @@
   .sort-icon.desc::after { content: '▼'; }
   .sort-icon.none::after { content: '⇅'; opacity: 0.3; }
 
+  .tf-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px; }
+  .tf-title { font-family:var(--font-head); font-size:15px; font-weight:600; }
+  .tf-subtitle { font-size:11px; color:var(--muted); font-family:var(--font-mono); font-weight:400; margin-left:8px; }
+  .tf-actions { display:flex; align-items:center; gap:8px; }
+  .tf-api-note { font-size:11px; color:var(--muted); margin-bottom:12px; }
+  .tf-output-wrap { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:20px 24px; min-height:200px; }
+  .tf-section { margin-bottom:20px; }
+  .tf-section-title { font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text); margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+  .tf-context { font-size:12px; color:var(--muted); line-height:1.8; }
+  .tf-pair-card { background:var(--surface2); border:1px solid var(--border2); border-radius:6px; padding:14px 16px; margin-bottom:10px; }
+  .tf-pair-card.bull { border-left:3px solid var(--bull); }
+  .tf-pair-card.bear { border-left:3px solid var(--bear); }
+  .tf-pair-card.best { border:1px solid var(--gold); background:var(--gold-dim); }
+  .tf-pair-header { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .tf-pair-sym { font-family:var(--font-head); font-size:16px; font-weight:600; }
+  .tf-quality { font-size:11px; color:var(--muted); margin-left:auto; }
+  .tf-type-badge { font-size:10px; padding:2px 7px; border-radius:3px; background:var(--surface); border:1px solid var(--border2); color:var(--muted); }
+  .tf-why { font-size:12px; color:var(--text); line-height:1.7; margin-bottom:6px; }
+  .tf-factors { font-size:11px; color:var(--muted); }
+  .tf-avoid { font-size:12px; color:var(--muted); line-height:1.9; }
+  .tf-insight { background:var(--accent-dim); border-left:2px solid var(--accent); border-radius:0 4px 4px 0; padding:12px 14px; font-size:12px; color:var(--text); line-height:1.8; }
+  .tf-loading { font-size:12px; color:var(--muted); animation: blink 1.2s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
   .tech-info-bar { font-size:11px; color:var(--muted); margin-bottom:14px; line-height:1.7; padding:10px 14px; background:var(--surface); border:1px solid var(--border); border-radius:6px; }
   .tech-badge { font-size:10px; padding:2px 7px; border-radius:3px; font-weight:500; display:inline-block; }
   .tech-bull { background:var(--bull-dim); color:var(--bull); border:1px solid var(--bull-mid); }
@@ -392,6 +416,7 @@
     <button class="tab-btn" onclick="switchTab('backtest',this)">Back-test</button>
     <button class="tab-btn" onclick="switchTab('macro',this)">Macro data</button>
     <button class="tab-btn" onclick="switchTab('technical',this)">Technická analýza</button>
+    <button class="tab-btn" onclick="switchTab('tradefilter',this)">Trade Filter</button>
   </div>
 
   <!-- DASHBOARD TAB -->
@@ -519,6 +544,24 @@
     <span style="font-size:11px;color:var(--muted);margin-left:12px">Stahuje ECB historická data (~5 sec)</span>
   </div>
 
+  <!-- TRADE FILTER TAB -->
+  <div class="tab-panel" id="tab-tradefilter">
+    <div class="tf-header">
+      <div class="tf-title">Trade Filter <span class="tf-subtitle">AI-powered · prop trader perspective</span></div>
+      <div class="tf-actions">
+        <button class="btn btn-primary" onclick="runTradeFilter()" id="tf-run-btn">Generovat analýzu</button>
+        <span id="tf-status" style="font-size:11px;color:var(--muted);margin-left:10px"></span>
+      </div>
+    </div>
+    <div class="tf-api-note" id="tf-api-note"></div>
+    <div id="tf-output" class="tf-output-wrap">
+      <div style="color:var(--muted);font-size:12px;padding:20px 0">
+        Klikni "Generovat analýzu" — AI zpracuje dnešní fundamentální + technická data a vrátí pouze high-probability trade setupy.
+      </div>
+    </div>
+  </div>
+
+
 </div>
 
 <!-- TOASTS -->
@@ -565,41 +608,29 @@ const FACTOR_LABELS = {
 // Default weight matrix: instrument → factor → weight (-1 to +1)
 // Positive weight = bullish signal when factor is high
 const DEFAULT_WEIGHTS = {
-  // ── HLAVNÍ PÁRY ──────────────────────────────────────────────────────────────
-  // dxy: USD sila vs daný pár | yields10y: US výnosy | risk_sentiment: risk-on/off
-  EURUSD: {dxy:-0.40, yields10y:-0.22, cpi_surprise:-0.15, nfp_surprise:-0.10, risk_sentiment:+0.08, geo_risk:-0.05},
-  GBPUSD: {dxy:-0.38, yields10y:-0.20, cpi_surprise:-0.14, nfp_surprise:-0.10, risk_sentiment:+0.10, geo_risk:-0.08},
-  USDJPY: {dxy:+0.20, yields10y:+0.38, cpi_surprise:+0.10, nfp_surprise:+0.08, risk_sentiment:+0.15, geo_risk:-0.19},
-  USDCHF: {dxy:+0.32, yields10y:+0.20, cpi_surprise:+0.12, nfp_surprise:+0.08, risk_sentiment:+0.12, geo_risk:-0.16},
-  AUDUSD: {dxy:-0.28, yields10y:-0.12, cpi_surprise:-0.08, nfp_surprise:+0.05, risk_sentiment:+0.28, geo_risk:-0.09},
-  USDCAD: {dxy:+0.30, yields10y:+0.15, cpi_surprise:+0.10, nfp_surprise:+0.08, risk_sentiment:-0.10, geo_risk:+0.07},
-  NZDUSD: {dxy:-0.28, yields10y:-0.12, cpi_surprise:-0.08, nfp_surprise:+0.04, risk_sentiment:+0.26, geo_risk:-0.12},
-  // ── KŘÍŽOVÉ PÁRY ─────────────────────────────────────────────────────────────
-  // Křížové páry reagují na relativní sílu obou měn, ne přímo na USD
-  // Pozitivní dxy = silný USD = bearish na EUR stranu, bullish na JPY/CHF (safe haven)
-  // EURGBP: EUR vs GBP — ECB vs BoE divergence, riskové toky
-  EURGBP: {dxy:+0.05, yields10y:+0.08, cpi_surprise:+0.06, nfp_surprise:+0.04, risk_sentiment:-0.15, geo_risk:-0.20},
-  // EURJPY: EUR vs JPY — výnosový diferenciál EU/JP, risk sentiment (JPY safe haven)
-  EURJPY: {dxy:-0.05, yields10y:+0.28, cpi_surprise:-0.06, nfp_surprise:-0.04, risk_sentiment:+0.32, geo_risk:-0.25},
-  // EURCHF: EUR vs CHF — geopolitické riziko dominuje (CHF safe haven), ECB vs SNB
-  EURCHF: {dxy:+0.08, yields10y:+0.12, cpi_surprise:+0.05, nfp_surprise:+0.03, risk_sentiment:+0.18, geo_risk:-0.30},
-  // EURAUD: EUR vs AUD — risk sentiment (AUD komoditní), čínský vliv
-  EURAUD: {dxy:-0.08, yields10y:+0.10, cpi_surprise:+0.05, nfp_surprise:+0.02, risk_sentiment:-0.32, geo_risk:+0.05},
-  // EURCAD: EUR vs CAD — ropa ovlivňuje CAD, ECB vs BoC
-  EURCAD: {dxy:-0.06, yields10y:+0.08, cpi_surprise:+0.04, nfp_surprise:+0.02, risk_sentiment:-0.20, geo_risk:+0.10},
-  // GBPJPY: "The Dragon" — vysoce volatilní, kombinuje GBP momentum + JPY carry
-  GBPJPY: {dxy:-0.06, yields10y:+0.28, cpi_surprise:-0.08, nfp_surprise:-0.06, risk_sentiment:+0.35, geo_risk:-0.27},
-  // GBPAUD: GBP vs AUD — BoE vs RBA, risk sentiment
-  GBPAUD: {dxy:-0.06, yields10y:+0.08, cpi_surprise:+0.04, nfp_surprise:+0.02, risk_sentiment:-0.28, geo_risk:+0.04},
-  // AUDJPY: čistý risk-on/off pár — AUD nahoru při risk-on, JPY nahoru při risk-off
-  AUDJPY: {dxy:-0.04, yields10y:+0.20, cpi_surprise:-0.05, nfp_surprise:-0.03, risk_sentiment:+0.42, geo_risk:-0.28},
-  // CADJPY: CAD carry vs JPY safe haven, ropa hraje roli
-  CADJPY: {dxy:-0.04, yields10y:+0.18, cpi_surprise:-0.04, nfp_surprise:-0.03, risk_sentiment:+0.38, geo_risk:-0.26},
-  // NZDJPY: similar to AUDJPY — risk-on/off, NZD commodity/China exposure
-  NZDJPY: {dxy:-0.04, yields10y:+0.20, cpi_surprise:-0.05, nfp_surprise:-0.03, risk_sentiment:+0.40, geo_risk:-0.28},
-  // ── KOMODITY ─────────────────────────────────────────────────────────────────
-  XAUUSD: {dxy:-0.38, yields10y:-0.30, cpi_surprise:+0.10, nfp_surprise:-0.08, risk_sentiment:-0.05, geo_risk:+0.09},
-  XAGUSD: {dxy:-0.32, yields10y:-0.25, cpi_surprise:+0.08, nfp_surprise:-0.06, risk_sentiment:+0.10, geo_risk:+0.09},
+  // Kalibrováno oproti Forex Fundamentals 22.4.2026
+  // Hlavní změna: cross páry mají snížený risk_sentiment vliv
+  // a zvýšený yields10y pro JPY páry (yield diferenciál dominuje)
+  EURUSD: {dxy:-0.42, yields10y:-0.20, cpi_surprise:-0.14, nfp_surprise:-0.10, risk_sentiment:+0.12, geo_risk:-0.04},
+  GBPUSD: {dxy:-0.38, yields10y:-0.18, cpi_surprise:-0.12, nfp_surprise:-0.10, risk_sentiment:+0.10, geo_risk:-0.08},
+  USDJPY: {dxy:+0.18, yields10y:+0.38, cpi_surprise:+0.10, nfp_surprise:+0.08, risk_sentiment:+0.08, geo_risk:-0.24},
+  USDCHF: {dxy:+0.30, yields10y:+0.18, cpi_surprise:+0.12, nfp_surprise:+0.08, risk_sentiment:+0.08, geo_risk:-0.18},
+  AUDUSD: {dxy:-0.26, yields10y:-0.10, cpi_surprise:-0.08, nfp_surprise:+0.05, risk_sentiment:+0.26, geo_risk:-0.07},
+  USDCAD: {dxy:+0.28, yields10y:+0.14, cpi_surprise:+0.10, nfp_surprise:+0.08, risk_sentiment:-0.12, geo_risk:+0.08},
+  NZDUSD: {dxy:-0.26, yields10y:-0.10, cpi_surprise:-0.08, nfp_surprise:+0.04, risk_sentiment:+0.24, geo_risk:-0.10},
+  // Křížové páry — snížený risk_sentiment, zvýšený yields10y
+  EURGBP: {dxy:+0.02, yields10y:+0.04, cpi_surprise:+0.12, nfp_surprise:+0.05, risk_sentiment:-0.04, geo_risk:-0.03},
+  EURJPY: {dxy:-0.02, yields10y:+0.25, cpi_surprise:-0.03, nfp_surprise:-0.02, risk_sentiment:+0.06, geo_risk:-0.06},
+  EURCHF: {dxy:+0.04, yields10y:+0.14, cpi_surprise:+0.08, nfp_surprise:+0.04, risk_sentiment:+0.20, geo_risk:-0.06},
+  EURAUD: {dxy:-0.04, yields10y:+0.08, cpi_surprise:+0.07, nfp_surprise:+0.03, risk_sentiment:-0.22, geo_risk:+0.06},
+  EURCAD: {dxy:-0.04, yields10y:+0.06, cpi_surprise:+0.06, nfp_surprise:+0.02, risk_sentiment:-0.14, geo_risk:+0.12},
+  GBPJPY: {dxy:-0.03, yields10y:+0.26, cpi_surprise:-0.05, nfp_surprise:-0.03, risk_sentiment:+0.08, geo_risk:-0.07},
+  GBPAUD: {dxy:-0.03, yields10y:+0.04, cpi_surprise:+0.02, nfp_surprise:+0.02, risk_sentiment:-0.30, geo_risk:+0.05},
+  AUDJPY: {dxy:-0.02, yields10y:+0.22, cpi_surprise:-0.03, nfp_surprise:-0.02, risk_sentiment:+0.18, geo_risk:-0.11},
+  CADJPY: {dxy:-0.02, yields10y:+0.24, cpi_surprise:-0.03, nfp_surprise:-0.02, risk_sentiment:+0.20, geo_risk:-0.11},
+  NZDJPY: {dxy:-0.02, yields10y:+0.22, cpi_surprise:-0.03, nfp_surprise:-0.02, risk_sentiment:+0.18, geo_risk:-0.11},
+  XAUUSD: {dxy:-0.38, yields10y:-0.28, cpi_surprise:+0.10, nfp_surprise:-0.08, risk_sentiment:-0.03, geo_risk:+0.13},
+  XAGUSD: {dxy:-0.32, yields10y:-0.24, cpi_surprise:+0.08, nfp_surprise:-0.06, risk_sentiment:+0.10, geo_risk:+0.10},
 };
 
 let weights = JSON.parse(JSON.stringify(DEFAULT_WEIGHTS));
@@ -674,7 +705,7 @@ function rebuildNorm() {
     yields10y:     clamp((macroData.yields10y - 4.0) / 1.0, -1, 1),
     cpi_surprise:  clamp(macroData.cpi_surprise / 0.3,  -1, 1),
     nfp_surprise:  clamp(macroData.nfp_surprise / 150,  -1, 1),
-    risk_sentiment:clamp(-(macroData.vix - 18)  / 10,  -1, 1),
+    risk_sentiment:clamp(-(macroData.vix - 18)  / 12,  -1, 1),  // /12 = méně extrémní při vysokém VIX
     geo_risk:      clamp(macroData.geo_risk,             -1, 1),
   };
 }
@@ -687,6 +718,9 @@ async function fetchMacroData() {
     nfp_latest: 272, nfp_consensus: 185, nfp_surprise: 87,
     risk_sentiment: 0, geo_risk: 0.35, vix: 18.2,
     rates: {}, sources: {}, fxSource: 'default',
+    currency_scores: { USD:0, EUR:0, GBP:0, JPY:0, CHF:0, AUD:0, CAD:0, NZD:0 },
+    strong_ccys: [], weak_ccys: [],
+    nfp_actual: 228, nfp_consensus: 140, cpi_actual: 2.4,
     fetched_at: new Date().toISOString(),
   };
 
@@ -702,14 +736,20 @@ async function fetchMacroData() {
     const res = await fetchWithTimeout('/.netlify/functions/macro', 10000);
     if (res.ok) {
       const d = await res.json();
-      if (d.yields10y)              macroData.yields10y    = d.yields10y;
-      if (d.dxy_change !== undefined) macroData.dxy_change = d.dxy_change;
+      if (d.yields10y)              macroData.yields10y      = d.yields10y;
+      if (d.dxy_change !== undefined) macroData.dxy_change   = d.dxy_change;
       if (d.cpi_surprise !== undefined) macroData.cpi_surprise = d.cpi_surprise;
       if (d.nfp_surprise !== undefined) macroData.nfp_surprise = d.nfp_surprise;
-      if (d.vix)                    macroData.vix          = d.vix;
-      if (d.geo_risk)               macroData.geo_risk     = d.geo_risk;
-      if (d.rates)                  macroData.rates        = d.rates;
-      if (d.sources)                macroData.sources      = d.sources;
+      if (d.vix)                    macroData.vix            = d.vix;
+      if (d.geo_risk)               macroData.geo_risk        = d.geo_risk;
+      if (d.rates)                  macroData.rates           = d.rates;
+      if (d.sources)                macroData.sources         = d.sources;
+      if (d.currency_scores)        macroData.currency_scores = d.currency_scores;
+      if (d.strong_ccys)            macroData.strong_ccys     = d.strong_ccys;
+      if (d.weak_ccys)              macroData.weak_ccys       = d.weak_ccys;
+      if (d.nfp_actual)             macroData.nfp_actual      = d.nfp_actual;
+      if (d.nfp_consensus)          macroData.nfp_consensus   = d.nfp_consensus;
+      if (d.cpi_actual)             macroData.cpi_actual      = d.cpi_actual;
       macroData.fxSource  = 'live';
       macroData.fetched_at = d.fetched_at || new Date().toISOString();
     }
@@ -1426,6 +1466,148 @@ function renderTechnicalResults(results, days) {
       <td class="${agreeCls}">${agreeText}</td>
     </tr>`;
   }).join('');
+}
+
+// ── TRADE FILTER ─────────────────────────────────────────────────────────────
+
+async function runTradeFilter() {
+  const btn    = document.getElementById('tf-run-btn');
+  const status = document.getElementById('tf-status');
+  const output = document.getElementById('tf-output');
+  const note   = document.getElementById('tf-api-note');
+
+  if (!apiKey) {
+    note.textContent = 'Zadej Claude API klíč nahoře pro Trade Filter.';
+    note.style.color = 'var(--bear)';
+    return;
+  }
+  note.textContent = '';
+  btn.disabled = true;
+  btn.textContent = 'Generuji...';
+  output.innerHTML = '<div class="tf-loading">AI analyzuje trh a filtruje setupy...</div>';
+
+  try {
+    const prompt = buildTradeFilterPrompt();
+    const result = await callClaude(prompt);
+    renderTradeFilterOutput(result);
+    status.textContent = 'Aktualizováno ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  } catch(e) {
+    output.innerHTML = '<div style="color:var(--bear);font-size:12px">Chyba: ' + e.message + '</div>';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Obnovit analýzu';
+}
+
+function buildTradeFilterPrompt() {
+  const d = macroData;
+  const vix = d.vix || 18;
+  const sentiment = vix < 15 ? 'Risk-On (VIX ' + vix + ')'
+    : vix < 20 ? 'Mírný Risk-On (VIX ' + vix + ')'
+    : vix < 25 ? 'Neutrální (VIX ' + vix + ')'
+    : vix < 30 ? 'Mírný Risk-Off (VIX ' + vix + ')'
+    : 'Risk-Off (VIX ' + vix + ')';
+
+  const scores = d.currency_scores || {};
+  const scoreStr = Object.entries(scores)
+    .sort((a,b) => b[1]-a[1])
+    .map(([k,v]) => k + ': ' + (v>0?'+':'') + v)
+    .join(', ');
+
+  const strong = (d.strong_ccys || []).join(', ') || 'nedostupné';
+  const weak   = (d.weak_ccys   || []).join(', ') || 'nedostupné';
+
+  // Fundamentální bias ze signálů
+  const bullPairs = biasResults.filter(r=>r.bias==='Bullish').sort((a,b)=>b.bull-a.bull).slice(0,6).map(r=>r.sym+' ('+r.bull+'%)').join(', ');
+  const bearPairs = biasResults.filter(r=>r.bias==='Bearish').sort((a,b)=>b.bear-a.bear).slice(0,6).map(r=>r.sym+' ('+r.bear+'%)').join(', ');
+
+  const dxyCtx = d.dxy_change > 0.2 ? 'USD silný (+' + d.dxy_change + '% DXY)'
+    : d.dxy_change < -0.2 ? 'USD slabý (' + d.dxy_change + '% DXY)'
+    : 'USD neutrální (' + d.dxy_change + '% DXY)';
+
+  return `Act as a professional FX macro + systematic trader.
+Your goal is NOT to describe the market, but to FILTER the cleanest high-probability forex trades for today.
+Focus only on high-confluence setups.
+
+INPUT — Current market context:
+* Risk sentiment: ${sentiment}
+* USD context: ${dxyCtx}
+* US 10Y yield: ${d.yields10y}% (prev: ${d.yields10y_prev}%)
+* CPI: ${d.cpi_actual}% (surprise: ${d.cpi_surprise > 0 ? '+' : ''}${d.cpi_surprise}%)
+* NFP: ${d.nfp_actual}k vs ${d.nfp_consensus}k consensus (surprise: ${d.nfp_surprise > 0 ? '+' : ''}${d.nfp_surprise}k)
+* Geopolitical risk: ${d.geo_risk > 0.6 ? 'Elevated' : d.geo_risk > 0.3 ? 'Moderate' : 'Low'} (${d.geo_risk})
+
+Currency strength scores (FX momentum + yield differential):
+${scoreStr}
+* Strong currencies: ${strong}
+* Weak currencies: ${weak}
+
+Fundamental bias engine signals:
+* Bullish: ${bullPairs || 'none'}
+* Bearish: ${bearPairs || 'none'}
+
+METHODOLOGY:
+Evaluate each pair using these factors:
+1. Relative currency strength (strong vs weak)
+2. Risk sentiment alignment (risk-on → favor AUD, CAD; risk-off → favor CHF, JPY)
+3. Carry / interest rate differential (prefer positive swap trades)
+4. Market flows (safe haven demand vs risk appetite)
+5. Avoid conflicting signals (e.g. strong currency vs safe haven inflow)
+
+IMPORTANT RULES:
+* Only include pairs where AT LEAST 3 factors are aligned
+* If signals are mixed or unclear → EXCLUDE the pair
+* Prioritize clarity over quantity
+* Prefer strong vs weak currency combinations
+* Do NOT include choppy / range conditions unless very clear
+
+OUTPUT STRUCTURE (respond in the same language I'm using — use English):
+
+1. Market Context (max 4 bullet points)
+- Clear, trader-focused summary (no generic macro talk)
+
+2. Top Bullish Pairs (max 3)
+For each pair:
+- Pair: [symbol]
+- Direction: Bullish
+- Why: [specific confluence, no fluff]
+- Factors aligned: [list them]
+- Quality score: X/10
+- Type: [trend / carry / momentum]
+
+3. Top Bearish Pairs (max 3)
+(same structure)
+
+4. Best of the Day
+- The single cleanest setup overall
+- Explain why it stands out
+
+5. Pairs to Avoid
+- List 3-5 pairs with conflicting signals
+- Short reason
+
+6. Trading Insight
+- 1-2 sentences: What is the best strategy today?
+
+STYLE: Be concise, precise, trader-focused. No generic explanations. No theory. Think like a prop trader filtering trades. Output only actionable insights.`;
+}
+
+function renderTradeFilterOutput(text) {
+  const output = document.getElementById('tf-output');
+  // Jednoduché renderování — zachovej strukturu textu, obarvi klíčová slova
+  const html = text
+    .replace(/^(\d+\.\s*.+)$/gm, '<div class="tf-section-title">$1</div>')
+    .replace(/^[-*]\s+\*\*(.+?)\*\*(.*)$/gm, '<div style="margin:4px 0"><span style="color:var(--text);font-weight:500">$1</span>$2</div>')
+    .replace(/\*\*(.+?)\*\*/g, '<span style="color:var(--text);font-weight:500">$1</span>')
+    .replace(/Bullish/g, '<span class="bias-badge bias-bull" style="font-size:10px;padding:1px 6px">Bullish</span>')
+    .replace(/Bearish/g, '<span class="bias-badge bias-bear" style="font-size:10px;padding:1px 6px">Bearish</span>')
+    .replace(/Quality score:\s*(\d+)\/10/g, '<span style="color:var(--gold)">Quality: $1/10</span>')
+    .replace(/^[-*]\s+(.+)$/gm, '<div style="font-size:12px;color:var(--muted);margin:3px 0;padding-left:8px">· $1</div>')
+    .replace(/
+
+/g, '<div style="height:12px"></div>')
+    .replace(/
+/g, '');
+  output.innerHTML = '<div style="font-size:12px;line-height:1.9;color:var(--text)">' + html + '</div>';
 }
 
 function toast(msg, type = 'info') {
