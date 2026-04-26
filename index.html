@@ -1605,8 +1605,16 @@ async function runTechnical() {
   status.textContent = 'Stahuji a počítám na serveru...';
 
   try {
-    // Server stáhne intraday svíčky z Binance/TwelveData/ECB a spočítá indikátory
-    const url = '/.netlify/functions/techdata' + (twelveKey ? '?twelveKey=' + encodeURIComponent(twelveKey) : '');
+    // Vezmi klíč live z inputu — nemusíš klikat "Uložit" před "Vypočítat"
+    const liveInput = document.getElementById('twelve-key-input');
+    const liveKey = (liveInput && liveInput.value.trim()) || twelveKey;
+    if (liveKey && liveKey !== twelveKey) {
+      twelveKey = liveKey;
+      localStorage.setItem('twelve_data_key', liveKey);
+    }
+    // Cache-bust query param zabrání tomu, aby Netlify Edge cache vracel starou odpověď
+    const ts = '_=' + Date.now();
+    const url = '/.netlify/functions/techdata?' + ts + (liveKey ? '&twelveKey=' + encodeURIComponent(liveKey) : '');
     const res = await fetch(url);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
@@ -1615,15 +1623,23 @@ async function runTechnical() {
     renderTechnicalResults(data.results, data.timeframes ? data.timeframes.length : 6);
     techCache = data;
     const fetched = data.fetched_at ? new Date(data.fetched_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
-    const fxSrc = data.sources && data.sources.fx_metals ? data.sources.fx_metals : (data.twelveKeyUsed ? 'TwelveData' : 'ECB synthetic');
-    const cryptoSrc = data.sources && data.sources.crypto ? data.sources.crypto : 'Binance';
-    const stats = data.stats ? `B${data.stats.Bullish}/N${data.stats.Neutral}/b${data.stats.Bearish}` : '';
-    status.innerHTML = `<span style="color:var(--bull)">✓ ${cryptoSrc} + ${fxSrc}</span>` +
-                      (stats ? ` · <span style="color:var(--muted)">${stats}</span>` : '') +
-                      (fetched ? ` · <span style="color:var(--muted)">${fetched}</span>` : '');
+    // Honest status — nelže pokud backend neposlal metadata
+    const hasNewBackend = !!(data.sources || data.stats || data.timeframes);
+    if (!hasNewBackend) {
+      status.innerHTML = '<span style="color:var(--bear)">⚠ Backend je STARÝ techdata.js — push nový do GitHubu</span>';
+    } else {
+      const fxSrc = (data.sources && data.sources.fx_metals) || (data.twelveKeyUsed ? 'TwelveData' : 'ECB synthetic');
+      const cryptoSrc = (data.sources && data.sources.crypto) || 'Binance';
+      const stats = data.stats ? `B${data.stats.Bullish}/N${data.stats.Neutral}/b${data.stats.Bearish}` : '';
+      status.innerHTML = `<span style="color:var(--bull)">✓ ${cryptoSrc} + ${fxSrc}</span>` +
+                        (stats ? ` · <span style="color:var(--muted)">${stats}</span>` : '') +
+                        (fetched ? ` · <span style="color:var(--muted)">${fetched}</span>` : '');
+    }
     if (data.debug && Array.isArray(data.debug)) {
       console.log('[techdata debug log — ' + data.debug.length + ' lines]');
       data.debug.forEach(line => console.log(line));
+    } else {
+      console.warn('[techdata] backend nevrátil debug log — pravděpodobně běží stará verze techdata.js');
     }
     btn.textContent = 'Obnovit';
   } catch(e) {
