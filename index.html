@@ -362,6 +362,7 @@
   .combo-bull { color:var(--bull); font-weight:500; }
   .combo-bear { color:var(--bear); font-weight:500; }
   .combo-neu  { color:var(--muted); }
+  .combo-warn { color:#ff9d2e; font-weight:500; }
   .agree-yes { color:var(--bull); font-size:12px; }
   .agree-no  { color:var(--bear); font-size:12px; }
   .agree-na  { color:var(--muted); font-size:12px; }
@@ -575,9 +576,16 @@
   <!-- TECHNICAL ANALYSIS TAB -->
   <div class="tab-panel" id="tab-technical">
     <div class="tech-info-bar">
-      Technická analýza stahuje multi-timeframe data z Yahoo Finance (5m, 15m, 30m, 1h, 4h, 1D).
-      Bias semafor v každém timeframe je odvozen z EMA20/50 křížení, RSI(14) a 5-svíčkového momentum.
+      <strong>Multi-source intraday TA</strong> — krypto z <strong>Binance</strong> (BTC, ETH; vždy reálné svíčky), FX a kovy z <strong>TwelveData</strong> (s API klíčem) nebo z <strong>Frankfurter ECB</strong> (synthetic fallback bez klíče).
+      Pro každý timeframe (5m, 15m, 30m, 1h, 4h, 1D) je bias spočítán z EMA20/EMA50 stacku, RSI(14), MACD(12,26,9) cross/histogramu a 5-svíčkového trendu — výsledek je <em>confluence score</em> v rozsahu ±1.0 s thresholdem ±0.25.
+      Pro nejlepší kvalitu FX dat doporučujeme zdarma TwelveData klíč (8 req/min, 800/den).
       <span id="tech-status" style="margin-left:8px;color:var(--bull)"></span>
+    </div>
+    <div class="api-section" style="margin-bottom:14px">
+      <span class="api-label">TwelveData API Key <span style="color:var(--dim)">(volitelné — pro reálné FX/metals svíčky)</span></span>
+      <input class="api-input" type="password" id="twelve-key-input" placeholder="vlož svůj TwelveData API klíč..." autocomplete="off">
+      <button class="btn btn-primary" id="twelve-connect-btn" onclick="connectTwelve()">Uložit</button>
+      <span class="api-note">Zdarma na <a href="https://twelvedata.com" target="_blank">twelvedata.com</a> · Bez klíče se použije ECB synthetic data</span>
     </div>
     <div class="table-wrap">
       <table class="bias-table" id="tech-table">
@@ -624,7 +632,7 @@
       </table>
     </div>
     <button class="btn btn-primary" style="margin-top:14px" onclick="runTechnical()" id="tech-run-btn">Vypočítat technickou analýzu</button>
-    <span style="font-size:11px;color:var(--muted);margin-left:12px">Stahuje multi-timeframe data z Yahoo (~10–15 sec)</span>
+    <span style="font-size:11px;color:var(--muted);margin-left:12px">Stahuje multi-timeframe data z Binance + TwelveData/ECB (~10–20 sec)</span>
   </div>
 
   <!-- TRADE FILTER TAB -->
@@ -744,6 +752,7 @@ let macroData = {
 let biasResults = [];
 let selectedRow = null;
 let apiKey = localStorage.getItem('bias_engine_key') || '';
+let twelveKey = localStorage.getItem('twelve_data_key') || '';
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 
@@ -752,6 +761,10 @@ window.addEventListener('load', () => {
   if (apiKey) {
     document.getElementById('api-key-input').value = apiKey;
     setConnected(true);
+  }
+  if (twelveKey) {
+    const tk = document.getElementById('twelve-key-input');
+    if (tk) tk.value = twelveKey;
   }
   const saved = localStorage.getItem('bias_engine_weights');
   if (saved) { try { weights = JSON.parse(saved); } catch(e){} }
@@ -813,6 +826,20 @@ function connectAPI() {
 function setConnected(on) {
   document.getElementById('status-dot').className = 'status-dot' + (on ? ' live' : '');
   document.getElementById('status-text').textContent = on ? 'Claude AI připojen' : 'Bez AI komentářů';
+}
+
+function connectTwelve() {
+  const input = document.getElementById('twelve-key-input');
+  const key = input ? input.value.trim() : '';
+  if (!key) {
+    twelveKey = '';
+    localStorage.removeItem('twelve_data_key');
+    toast('TwelveData klíč odstraněn — bude se používat ECB synthetic fallback', 'info');
+    return;
+  }
+  twelveKey = key;
+  localStorage.setItem('twelve_data_key', key);
+  toast('TwelveData klíč uložen — klikni "Vypočítat" pro reálná intradenní data', 'success');
 }
 
 // ── MACRO DATA — Netlify Function ────────────────────────────────────────────
@@ -1578,16 +1605,26 @@ async function runTechnical() {
   status.textContent = 'Stahuji a počítám na serveru...';
 
   try {
-    // Server stáhne ECB data A spočítá indikátory — vrátí jen hotové výsledky
-    const res = await fetch('/.netlify/functions/techdata');
+    // Server stáhne intraday svíčky z Binance/TwelveData/ECB a spočítá indikátory
+    const url = '/.netlify/functions/techdata' + (twelveKey ? '?twelveKey=' + encodeURIComponent(twelveKey) : '');
+    const res = await fetch(url);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     if (data.error) throw new Error(data.error);
-    // data.results = { EURUSD: {bias, rsi, emaTrend, momentum, conf, tfBias{...}}, ... }
+    // data.results = { EURUSD: {bias, rsi, emaTrend, momentum, conf, tfBias{...}, indicators{...}}, ... }
     renderTechnicalResults(data.results, data.timeframes ? data.timeframes.length : 6);
-    const src = data.source || 'Yahoo Finance';
+    techCache = data;
     const fetched = data.fetched_at ? new Date(data.fetched_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
-    status.textContent = src + (fetched ? ' · ' + fetched : '');
+    const fxSrc = data.sources && data.sources.fx_metals ? data.sources.fx_metals : (data.twelveKeyUsed ? 'TwelveData' : 'ECB synthetic');
+    const cryptoSrc = data.sources && data.sources.crypto ? data.sources.crypto : 'Binance';
+    const stats = data.stats ? `B${data.stats.Bullish}/N${data.stats.Neutral}/b${data.stats.Bearish}` : '';
+    status.innerHTML = `<span style="color:var(--bull)">✓ ${cryptoSrc} + ${fxSrc}</span>` +
+                      (stats ? ` · <span style="color:var(--muted)">${stats}</span>` : '') +
+                      (fetched ? ` · <span style="color:var(--muted)">${fetched}</span>` : '');
+    if (data.debug && Array.isArray(data.debug)) {
+      console.log('[techdata debug log — ' + data.debug.length + ' lines]');
+      data.debug.forEach(line => console.log(line));
+    }
     btn.textContent = 'Obnovit';
   } catch(e) {
     status.textContent = 'Chyba: ' + e.message;
@@ -1737,7 +1774,7 @@ function renderTechRows() {
     const bc = grp==='crypto'?'cat-crypto':grp==='com'?'cat-com':grp==='cross'?'cat-cross':'cat-fx';
     const bl = grp==='crypto'?'Crypto':grp==='com'?'Commodity':grp==='cross'?'Cross':'Major';
     const rsiCls = r.rsi > 70 ? 'rsi-ob' : r.rsi < 30 ? 'rsi-os' : 'rsi-mid';
-    const comboCls = r.combo==='Bullish'?'combo-bull':r.combo==='Bearish'?'combo-bear':r.combo==='Konflikt'?'combo-bear':'combo-neu';
+    const comboCls = r.combo==='Bullish'?'combo-bull':r.combo==='Bearish'?'combo-bear':r.combo==='Konflikt'?'combo-warn':'combo-neu';
     const momCls = String(r.momentum).startsWith('+') ? 'pct-bull' : 'pct-bear';
     const agreeText = r.agree==='yes' ? '✓ Shoda' : r.agree==='partial' ? '~ Částečně' : r.agree==='no' ? '✗ Konflikt' : '—';
     const agreeCls  = r.agree==='yes' ? 'agree-yes' : r.agree==='no' ? 'agree-no' : 'agree-na';
