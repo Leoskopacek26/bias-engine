@@ -427,9 +427,11 @@
   .fv-status-fair  { background:var(--surface2); color:var(--muted); border-color:var(--border2); }
   .fv-status-na    { background:var(--surface2); color:var(--dim); border-color:var(--border); }
   .fv-type-pill { display:inline-block; padding:1px 7px; border-radius:3px; font-size:9px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; border:1px solid var(--border2); color:var(--muted); }
-  .fv-type-stock  { background:var(--surface2); }
-  .fv-type-etf    { background:#3a2f1f; color:#f7c843; border-color:#7a5e1f; }
-  .fv-type-crypto { background:#3a2419; color:#f7931a; border-color:#7a4a1f; }
+  .fv-type-stock   { background:var(--surface2); }
+  .fv-type-etf     { background:#3a2f1f; color:#f7c843; border-color:#7a5e1f; }
+  .fv-type-crypto  { background:#3a2419; color:#f7931a; border-color:#7a4a1f; }
+  .fv-type-unknown { background:var(--surface2); color:var(--dim); }
+  .fv-type-error   { background:var(--bear-dim); color:var(--bear); border-color:var(--bear-mid); }
   .fv-diff-pos { color:var(--bull); font-weight:600; }
   .fv-diff-neg { color:var(--bear); font-weight:600; }
   .fv-diff-neu { color:var(--muted); }
@@ -661,17 +663,21 @@
   <!-- FAIR VALUE TAB -->
   <div class="tab-panel" id="tab-fairvalue">
     <div class="tech-info-bar">
-      <strong>Fair Value Calculator</strong> — kombinace DCF (40 %), sektorové P/E (30 %), PEG (20 %) a P/B (10 %) pro akcie. Pro ETF: P/E vs market, dividend yield, expense ratio penalty. Pro krypto: <em>Mayer Multiple</em> (price / 200-DMA).
-      Stav: <strong style="color:var(--bull)">UNDERVALUED</strong> = diff &gt; +15 %, <strong style="color:var(--bear)">OVERVALUED</strong> = diff &lt; -15 %, jinak <strong>FAIR</strong>.
-      Data z Financial Modeling Prep (free 250 req/den).
+      <strong>Fair Value Calculator v2</strong> — fundamentální férovka z <em>Finnhub</em>:
+      <strong>Earnings model</strong> (EPS × fairPE podle růstu) blendovaný s <strong>FCF modelem</strong> (FCF/share × multiple),
+      upravený o <strong>quality multiplier</strong> (marže + dluh + růst).
+      Crypto a ETF: férovka <strong>N/A</strong> (chybí relevantní fundamenty).
+      Stav: <strong style="color:var(--bull)">UNDERVALUED</strong> = upside &gt; +15 %, <strong style="color:var(--bear)">OVERVALUED</strong> = upside &lt; -15 %, jinak <strong>FAIR</strong>.
       <span id="fv-status" style="margin-left:8px;color:var(--bull)"></span>
     </div>
 
-    <div class="api-section" style="margin-bottom:14px">
-      <span class="api-label">FMP API Key <span style="color:var(--dim)">(volitelné — bez něj jen krypto)</span></span>
-      <input class="api-input" type="password" id="fmp-key-input" placeholder="vlož svůj FMP API klíč..." autocomplete="off">
-      <button class="btn btn-primary" id="fmp-connect-btn" onclick="connectFmp()">Uložit</button>
-      <span class="api-note">Zdarma na <a href="https://site.financialmodelingprep.com/developer/docs" target="_blank">financialmodelingprep.com</a> · 250 req/den</span>
+    <div class="api-section" style="margin-bottom:14px; background:var(--surface); border:1px solid var(--border); padding:10px 14px; border-radius:6px">
+      <span style="font-size:12px; color:var(--muted)">
+        🔑 <strong>Finnhub API klíč</strong> nastaven přes Netlify env proměnnou <code style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:3px">FINNHUB_API_KEY</code> (nikdy ne ve frontendu).
+        Zdarma na <a href="https://finnhub.io/register" target="_blank" style="color:var(--bull)">finnhub.io</a> · limit 60 calls/min.
+        <button class="btn btn-secondary" onclick="checkFvHealth()" style="margin-left:12px; padding:4px 10px; font-size:11px">Test API</button>
+        <span id="fv-health-status" style="margin-left:10px; font-size:11px"></span>
+      </span>
     </div>
 
     <!-- Single ticker form -->
@@ -681,6 +687,9 @@
         <input class="api-input" id="fv-ticker-input" placeholder="AAPL, SPY, BTCUSD ..." style="flex:0 0 200px; text-transform:uppercase" autocomplete="off"
                onkeydown="if(event.key==='Enter')runFairValueOne()">
         <button class="btn btn-primary" onclick="runFairValueOne()" id="fv-one-btn">Spočítat</button>
+        <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); cursor:pointer">
+          <input type="checkbox" id="fv-skip-cache" style="cursor:pointer"> Bez cache (čerstvá data)
+        </label>
         <span id="fv-one-msg" style="font-size:11px; color:var(--muted)"></span>
       </div>
       <div id="fv-one-result" style="margin-top:14px; display:none"></div>
@@ -691,8 +700,17 @@
       <div style="font-size:13px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--text)">Watchlist — Fair Value Dashboard</div>
       <button class="btn btn-primary" onclick="runWatchlist()" id="fv-wl-btn" style="padding:6px 14px; font-size:11px">↻ Refresh</button>
       <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); cursor:pointer">
-        <input type="checkbox" id="fv-only-under" onchange="renderWatchlist()" style="cursor:pointer">
-        Jen UNDERVALUED
+        <input type="checkbox" id="fv-wl-skip-cache" style="cursor:pointer"> Bez cache
+      </label>
+      <span style="border-left:1px solid var(--border); height:18px"></span>
+      <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--bull); cursor:pointer">
+        <input type="checkbox" id="fv-flt-under" onchange="renderWatchlist()" style="cursor:pointer"> UNDERVALUED
+      </label>
+      <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--bear); cursor:pointer">
+        <input type="checkbox" id="fv-flt-over" onchange="renderWatchlist()" style="cursor:pointer"> OVERVALUED
+      </label>
+      <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); cursor:pointer">
+        <input type="checkbox" id="fv-flt-na" onchange="renderWatchlist()" style="cursor:pointer"> N/A
       </label>
       <span id="fv-wl-status" style="font-size:11px; color:var(--muted); margin-left:auto"></span>
     </div>
@@ -700,16 +718,18 @@
     <div class="table-wrap">
       <table class="bias-table" id="fv-table">
         <thead><tr id="fv-sort-header">
-          <th class="sortable" data-fcol="ticker" onclick="fvSortBy('ticker')">Ticker <span class="sort-icon" id="fvi-ticker"></span></th>
-          <th class="sortable" data-fcol="type" onclick="fvSortBy('type')">Typ <span class="sort-icon" id="fvi-type"></span></th>
-          <th class="sortable" data-fcol="price" onclick="fvSortBy('price')">Cena <span class="sort-icon" id="fvi-price"></span></th>
-          <th class="sortable" data-fcol="fair" onclick="fvSortBy('fair')">Fair value <span class="sort-icon" id="fvi-fair"></span></th>
-          <th class="sortable" data-fcol="diff" onclick="fvSortBy('diff')">Rozdíl % <span class="sort-icon" id="fvi-diff"></span></th>
-          <th class="sortable" data-fcol="status" onclick="fvSortBy('status')">Stav <span class="sort-icon" id="fvi-status"></span></th>
+          <th class="sortable" data-fcol="ticker"     onclick="fvSortBy('ticker')">Ticker <span class="sort-icon" id="fvi-ticker"></span></th>
+          <th class="sortable" data-fcol="type"       onclick="fvSortBy('type')">Typ <span class="sort-icon" id="fvi-type"></span></th>
+          <th class="sortable" data-fcol="price"      onclick="fvSortBy('price')">Cena <span class="sort-icon" id="fvi-price"></span></th>
+          <th class="sortable" data-fcol="fair"       onclick="fvSortBy('fair')">Fair value <span class="sort-icon" id="fvi-fair"></span></th>
+          <th class="sortable" data-fcol="upside"     onclick="fvSortBy('upside')">Upside % <span class="sort-icon" id="fvi-upside"></span></th>
+          <th class="sortable" data-fcol="status"     onclick="fvSortBy('status')">Stav <span class="sort-icon" id="fvi-status"></span></th>
+          <th class="sortable" data-fcol="confidence" onclick="fvSortBy('confidence')">Conf. <span class="sort-icon" id="fvi-confidence"></span></th>
+          <th>Method</th>
           <th>Detail</th>
         </tr></thead>
         <tbody id="fv-tbody">
-          <tr><td colspan="7" style="text-align:center; color:var(--muted); padding:32px">Klikni "↻ Refresh" pro spuštění watchlistu (~30–60 sekund pro 70+ tickerů).</td></tr>
+          <tr><td colspan="9" style="text-align:center; color:var(--muted); padding:32px">Klikni "↻ Refresh" pro spuštění watchlistu (~60–90 sekund pro 77 tickerů z důvodu rate limitu Finnhub 60/min).</td></tr>
         </tbody>
       </table>
     </div>
@@ -2057,10 +2077,8 @@ function toast(msg, type = 'info') {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FAIR VALUE — modul
+// FAIR VALUE v2 — Finnhub backend
 // ─────────────────────────────────────────────────────────────────────────────
-
-let fmpKey = localStorage.getItem('fmp_api_key') || '';
 
 const FV_WATCHLIST = [
   'CNSW','CNC','ADSK','BX','S','MU','VRSN','ASML','SMCI','HIMS','PYPL','INTC',
@@ -2073,24 +2091,29 @@ const FV_WATCHLIST = [
 ];
 
 let fvWatchlistData = {};   // ticker → result obj
-let fvSortCol = 'diff';
+let fvSortCol = 'upside';
 let fvSortDir = -1;          // -1 = desc (most undervalued first)
 
-function connectFmp() {
-  const input = document.getElementById('fmp-key-input');
-  const key = input ? input.value.trim() : '';
-  if (!key) {
-    fmpKey = '';
-    localStorage.removeItem('fmp_api_key');
-    toast('FMP klíč odstraněn', 'info');
-    return;
+// ── Health check API ────────────────────────────────────────────────────────
+async function checkFvHealth() {
+  const el = document.getElementById('fv-health-status');
+  el.innerHTML = '<span style="color:var(--muted)">⏳ testuji...</span>';
+  try {
+    const res = await fetch('/.netlify/functions/fairvalue?health=1&_=' + Date.now());
+    const data = await res.json();
+    if (!data.envFinnhub) {
+      el.innerHTML = '<span style="color:var(--bear)">✗ FINNHUB_API_KEY není v Netlify env</span>';
+    } else if (data.finnhub && data.finnhub.ok) {
+      el.innerHTML = `<span style="color:var(--bull)">✓ Finnhub OK — ${data.finnhub.sample.name} (${data.finnhub.sample.exchange})</span>`;
+    } else {
+      el.innerHTML = `<span style="color:var(--bear)">✗ ${data.finnhub?.error || 'unknown'}</span>`;
+    }
+  } catch (e) {
+    el.innerHTML = `<span style="color:var(--bear)">✗ Network error: ${e.message}</span>`;
   }
-  fmpKey = key;
-  localStorage.setItem('fmp_api_key', key);
-  toast('FMP klíč uložen', 'success');
 }
 
-// Single ticker calculator
+// ── Single ticker calculator ────────────────────────────────────────────────
 async function runFairValueOne() {
   const input = document.getElementById('fv-ticker-input');
   const t = (input.value || '').trim().toUpperCase();
@@ -2098,25 +2121,27 @@ async function runFairValueOne() {
   const btn = document.getElementById('fv-one-btn');
   const msg = document.getElementById('fv-one-msg');
   const out = document.getElementById('fv-one-result');
+  const skipCache = document.getElementById('fv-skip-cache')?.checked;
   btn.disabled = true;
   btn.textContent = 'Počítám...';
   msg.textContent = '';
   out.style.display = 'none';
   try {
-    const liveKey = (document.getElementById('fmp-key-input').value || '').trim() || fmpKey;
-    if (liveKey && liveKey !== fmpKey) { fmpKey = liveKey; localStorage.setItem('fmp_api_key', liveKey); }
-    const url = '/.netlify/functions/fairvalue?_=' + Date.now() + '&tickers=' + encodeURIComponent(t)
-              + (liveKey ? '&fmpKey=' + encodeURIComponent(liveKey) : '');
+    const url = '/.netlify/functions/fairvalue?symbol=' + encodeURIComponent(t)
+              + (skipCache ? '&refresh=1' : '')
+              + '&_=' + Date.now();
     const res = await fetch(url);
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    const r = data.results[t] || data.results[Object.keys(data.results)[0]];
-    if (!r) throw new Error('Žádný výsledek');
+    const r = await res.json();
+    if (r.error && !r.symbol) throw new Error(r.error);
     out.innerHTML = renderFvCard(t, r);
     out.style.display = 'block';
-    msg.textContent = data.ms ? `${data.ms} ms` : '';
-    if (data.debug) data.debug.forEach(line => console.log(line));
+    const cacheTag = r.cached ? ' (cached)' : '';
+    msg.innerHTML = `<span style="color:var(--muted)">${r.fetchMs || '—'} ms${cacheTag}</span>`;
+    if (r.debug && Array.isArray(r.debug)) {
+      console.log(`[fairvalue ${t} — ${r.debug.length} debug lines]`);
+      r.debug.forEach(line => console.log('  ' + line));
+    }
   } catch (e) {
     msg.innerHTML = '<span style="color:var(--bear)">Chyba: ' + e.message + '</span>';
   }
@@ -2124,80 +2149,112 @@ async function runFairValueOne() {
   btn.textContent = 'Spočítat';
 }
 
+// ── Card renderer ───────────────────────────────────────────────────────────
 function renderFvCard(ticker, r) {
-  if (r.error) {
-    return `<div class="fv-detail-card"><strong>${ticker}</strong> — <span style="color:var(--bear)">${r.error}</span></div>`;
+  if (!r || (!r.symbol && r.error)) {
+    return `<div class="fv-detail-card"><strong>${ticker}</strong> — <span style="color:var(--bear)">${r?.error || 'no data'}</span></div>`;
   }
-  const statusClass = r.status === 'UNDERVALUED' ? 'fv-status-under'
-                    : r.status === 'OVERVALUED' ? 'fv-status-over' : 'fv-status-fair';
-  const diffClass = r.diffPct > 5 ? 'fv-diff-pos' : r.diffPct < -5 ? 'fv-diff-neg' : 'fv-diff-neu';
-  const sign = r.diffPct > 0 ? '+' : '';
-  const breakdown = Array.isArray(r.breakdown)
-    ? r.breakdown.map(b => `${b.method}: <strong>${b.value}</strong> (váha ${(b.weight*100).toFixed(0)}%)`).join(' · ')
-    : (r.breakdown ? Object.entries(r.breakdown).map(([k,v]) => `${k}: <strong>${v}</strong>`).join(' · ') : '');
-  const dataRows = r.data ? Object.entries(r.data).filter(([_, v]) => v != null && v !== '').map(([k,v]) => {
-    const val = typeof v === 'number' ? v.toFixed(2) : v;
-    return `<div><span>${fmtFvKey(k)}</span><span>${val}</span></div>`;
-  }).join('') : '';
+  const statusClass =
+    r.status === 'UNDERVALUED' ? 'fv-status-under' :
+    r.status === 'OVERVALUED'  ? 'fv-status-over'  :
+    r.status === 'FAIR'        ? 'fv-status-fair'  : 'fv-status-na';
+  const upsideClass =
+    r.upsidePct == null ? 'fv-diff-neu' :
+    r.upsidePct >  5    ? 'fv-diff-pos' :
+    r.upsidePct < -5    ? 'fv-diff-neg' : 'fv-diff-neu';
+  const sign = (r.upsidePct ?? 0) > 0 ? '+' : '';
+  const confColor =
+    r.confidence === 'HIGH'   ? 'var(--bull)' :
+    r.confidence === 'MEDIUM' ? 'var(--gold)' :
+    r.confidence === 'LOW'    ? 'var(--text-dim)' : 'var(--muted)';
+
+  // Klíčová fundamenta (pokud máme)
+  const n = r.normalized || {};
+  const rows = [];
+  if (n.epsTtm != null)        rows.push(['EPS (TTM)',        n.epsTtm.toFixed(2)]);
+  if (n.peTtm != null)         rows.push(['P/E (TTM)',        n.peTtm.toFixed(2)]);
+  if (n.psTtm != null)         rows.push(['P/S',              n.psTtm.toFixed(2)]);
+  if (n.pb != null)            rows.push(['P/B',              n.pb.toFixed(2)]);
+  if (n.revenueGrowth != null) rows.push(['Růst tržeb',       n.revenueGrowth.toFixed(1) + ' %']);
+  if (n.epsGrowth != null)     rows.push(['Růst EPS',         n.epsGrowth.toFixed(1) + ' %']);
+  if (n.grossMargin != null)   rows.push(['Gross margin',     n.grossMargin.toFixed(1) + ' %']);
+  if (n.operatingMargin != null) rows.push(['Operating margin', n.operatingMargin.toFixed(1) + ' %']);
+  if (n.netMargin != null)     rows.push(['Net margin',       n.netMargin.toFixed(1) + ' %']);
+  if (n.debtToEquity != null)  rows.push(['Debt/Equity',      n.debtToEquity.toFixed(2)]);
+  if (n.fcfPerShare != null)   rows.push(['FCF/share',        n.fcfPerShare.toFixed(2)]);
+  if (n.dividendYield != null) rows.push(['Dividend yield',   n.dividendYield.toFixed(2) + ' %']);
+  if (n.industry)              rows.push(['Industry',         n.industry]);
+  if (n.exchange)              rows.push(['Exchange',         n.exchange]);
+  if (n.currency)              rows.push(['Currency',         n.currency]);
+
+  const dataRows = rows.length
+    ? `<div class="fv-detail-grid">${rows.map(([k,v]) => `<div><span>${k}</span><span>${v}</span></div>`).join('')}</div>`
+    : '';
+
+  const debugBlock = (r.debug && r.debug.length) ? `
+    <details style="margin-top:10px">
+      <summary style="cursor:pointer; font-size:11px; color:var(--muted)">Debug (${r.debug.length} steps)</summary>
+      <pre style="background:rgba(255,255,255,0.03); padding:8px; border-radius:4px; font-size:11px; color:var(--muted); white-space:pre-wrap; margin-top:6px">${r.debug.join('\n')}</pre>
+    </details>` : '';
+
+  const errorsBlock = (r.errors && Object.values(r.errors).some(Boolean)) ? `
+    <div style="margin-top:8px; font-size:11px; color:var(--gold)">
+      ⚠ Source errors: ${Object.entries(r.errors).filter(([_,v])=>v).map(([k,v])=>`${k}: ${v}`).join(' · ')}
+    </div>` : '';
+
   return `
     <div class="fv-detail-card">
       <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap">
         <strong style="font-size:18px; letter-spacing:.04em">${ticker}</strong>
-        <span class="fv-type-pill fv-type-${r.type}">${r.type.toUpperCase()}</span>
-        <span style="color:var(--muted); font-size:12px">Cena: <strong style="color:var(--text)">$${r.price?.toFixed(2)}</strong></span>
-        <span style="color:var(--muted); font-size:12px">Fair: <strong style="color:var(--text)">$${r.fairValue?.toFixed(2)}</strong></span>
-        <span class="${diffClass}" style="font-size:14px">${sign}${r.diffPct?.toFixed(1)}%</span>
-        <span class="fv-status ${statusClass}">${r.status}</span>
+        <span class="fv-type-pill fv-type-${r.type || 'unknown'}">${(r.type || 'unknown').toUpperCase()}</span>
+        <span style="color:var(--muted); font-size:12px">Cena: <strong style="color:var(--text)">${r.price != null ? '$' + r.price.toFixed(2) : '—'}</strong></span>
+        <span style="color:var(--muted); font-size:12px">Fair: <strong style="color:var(--text)">${r.fairValue != null ? '$' + r.fairValue.toFixed(2) : 'N/A'}</strong></span>
+        <span class="${upsideClass}" style="font-size:14px">${r.upsidePct != null ? sign + r.upsidePct.toFixed(1) + '%' : 'N/A'}</span>
+        <span class="fv-status ${statusClass}">${r.status || 'N/A'}</span>
+        <span style="font-size:11px; color:${confColor}; border:1px solid ${confColor}; padding:2px 6px; border-radius:3px">conf ${r.confidence || 'N/A'}</span>
       </div>
-      ${r.reason ? `<div style="font-size:12px; color:var(--muted); margin-top:8px">${r.reason}</div>` : ''}
-      ${breakdown ? `<div class="fv-breakdown"><strong>Rozklad:</strong> ${breakdown}</div>` : ''}
-      ${dataRows ? `<div class="fv-detail-grid">${dataRows}</div>` : ''}
+      <div style="font-size:11px; color:var(--muted); margin-top:6px">
+        ${r.method ? `<strong>Method:</strong> ${r.method}` : ''}
+        ${n.name ? ` · <strong>${n.name}</strong>` : ''}
+      </div>
+      ${r.explanation ? `<div style="font-size:12px; color:var(--text); margin-top:8px">${r.explanation}</div>` : ''}
+      ${dataRows}
+      ${errorsBlock}
+      ${debugBlock}
     </div>`;
 }
 
-function fmtFvKey(k) {
-  const map = {
-    sector:'Sektor', peTtm:'P/E (TTM)', pegTtm:'PEG', pbTtm:'P/B', psTtm:'P/S',
-    debt2eq:'Debt/Equity', fcfPS:'FCF/share', revGrowth:'Růst tržeb',
-    epsGrowth:'Růst EPS', dcfVal:'DCF (FMP)', eps:'EPS', peEtf:'P/E ETF',
-    yieldPct:'Dividend yield', expense:'Expense ratio', aum:'AUM',
-    fairScore:'Fair score',
-  };
-  return map[k] || k;
-}
-
-// Watchlist
+// ── Watchlist ───────────────────────────────────────────────────────────────
 async function runWatchlist() {
   const btn = document.getElementById('fv-wl-btn');
   const status = document.getElementById('fv-wl-status');
   const tbody = document.getElementById('fv-tbody');
+  const skipCache = document.getElementById('fv-wl-skip-cache')?.checked;
   btn.disabled = true;
   btn.textContent = '...';
-  status.textContent = `Načítám ${FV_WATCHLIST.length} tickerů z FMP (chunky po 6)...`;
-  tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:32px">⏳ Načítám fair value pro ${FV_WATCHLIST.length} tickerů…</td></tr>`;
+  status.textContent = `Načítám ${FV_WATCHLIST.length} tickerů z Finnhub (rate-limit: 60/min)...`;
+  tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--muted); padding:32px">⏳ Načítám fair value pro ${FV_WATCHLIST.length} tickerů… (~60–90 s)</td></tr>`;
   try {
-    const liveKey = (document.getElementById('fmp-key-input').value || '').trim() || fmpKey;
-    const url = '/.netlify/functions/fairvalue?_=' + Date.now()
-              + '&tickers=' + encodeURIComponent(FV_WATCHLIST.join(','))
-              + (liveKey ? '&fmpKey=' + encodeURIComponent(liveKey) : '');
+    const url = '/.netlify/functions/fairvalue-watchlist'
+              + (skipCache ? '?refresh=1' : '?_=' + Date.now());
     const res = await fetch(url);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    if (data.error) throw new Error(data.error);
     fvWatchlistData = data.results || {};
-    const s = data.stats || { undervalued:0, fair:0, overvalued:0, errors:0 };
-    status.innerHTML = `<span style="color:var(--bull)">U:${s.undervalued}</span> · ` +
+    const s = data.stats || { undervalued:0, fair:0, overvalued:0, na:0 };
+    const healthBadge = data.health?.ok
+      ? `<span style="color:var(--bull)">✓ Finnhub</span>`
+      : `<span style="color:var(--bear)">✗ ${data.health?.error || 'no health'}</span>`;
+    status.innerHTML = `${healthBadge} · ` +
+                       `<span style="color:var(--bull)">U:${s.undervalued}</span> · ` +
                        `<span style="color:var(--muted)">F:${s.fair}</span> · ` +
                        `<span style="color:var(--bear)">O:${s.overvalued}</span> · ` +
-                       `<span style="color:var(--dim)">ERR:${s.errors}</span> · ${data.ms||0}ms`;
-    if (data.debug && Array.isArray(data.debug)) {
-      console.log(`[fairvalue debug — ${data.debug.length} lines]`);
-      data.debug.forEach(line => console.log(line));
-    }
+                       `<span style="color:var(--dim)">N/A:${s.na}</span> · ${data.ms||0}ms`;
+    console.log(`[watchlist] ${data.ms}ms, cache: ${data.cache?.entries} entries`);
     renderWatchlist();
   } catch (e) {
     status.innerHTML = '<span style="color:var(--bear)">Chyba: ' + e.message + '</span>';
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--bear); padding:32px">${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--bear); padding:32px">${e.message}</td></tr>`;
   }
   btn.disabled = false;
   btn.textContent = '↻ Refresh';
@@ -2205,9 +2262,9 @@ async function runWatchlist() {
 
 function fvSortBy(col) {
   if (fvSortCol === col) { fvSortDir *= -1; }
-  else { fvSortCol = col; fvSortDir = (col === 'ticker' || col === 'type' || col === 'status') ? 1 : -1; }
+  else { fvSortCol = col; fvSortDir = (col === 'ticker' || col === 'type' || col === 'status' || col === 'confidence') ? 1 : -1; }
   renderWatchlist();
-  ['ticker','type','price','fair','diff','status'].forEach(c => {
+  ['ticker','type','price','fair','upside','status','confidence'].forEach(c => {
     const el = document.getElementById('fvi-' + c);
     if (!el) return;
     el.className = 'sort-icon ' + (c === fvSortCol ? (fvSortDir === 1 ? 'asc' : 'desc') : 'none');
@@ -2215,56 +2272,83 @@ function fvSortBy(col) {
 }
 
 function statusOrderVal(s) {
-  if (s === 'UNDERVALUED') return 3;
-  if (s === 'FAIR') return 2;
-  if (s === 'OVERVALUED') return 1;
-  return 0;
+  if (s === 'UNDERVALUED') return 4;
+  if (s === 'FAIR')        return 3;
+  if (s === 'OVERVALUED')  return 2;
+  return 1; // N/A
+}
+function confidenceOrderVal(c) {
+  if (c === 'HIGH')   return 4;
+  if (c === 'MEDIUM') return 3;
+  if (c === 'LOW')    return 2;
+  return 1; // N/A
 }
 
 function renderWatchlist() {
   const tbody = document.getElementById('fv-tbody');
   if (!tbody) return;
-  const onlyUnder = document.getElementById('fv-only-under').checked;
+  const fltUnder = document.getElementById('fv-flt-under')?.checked;
+  const fltOver  = document.getElementById('fv-flt-over')?.checked;
+  const fltNa    = document.getElementById('fv-flt-na')?.checked;
+  const anyFilter = fltUnder || fltOver || fltNa;
+
   let rows = Object.entries(fvWatchlistData).map(([ticker, r]) => ({ ticker, r }));
-  if (onlyUnder) rows = rows.filter(({r}) => r.status === 'UNDERVALUED');
+
+  // Filter
+  if (anyFilter) {
+    rows = rows.filter(({r}) => {
+      if (fltUnder && r.status === 'UNDERVALUED') return true;
+      if (fltOver  && r.status === 'OVERVALUED')  return true;
+      if (fltNa    && (r.status === 'N/A' || !r.status)) return true;
+      return false;
+    });
+  }
+
+  // Sort
   rows.sort((a, b) => {
     const ar = a.r, br = b.r;
     let va, vb;
-    if      (fvSortCol === 'ticker') { va = a.ticker; vb = b.ticker; }
-    else if (fvSortCol === 'type')   { va = ar.type || 'z';  vb = br.type || 'z'; }
-    else if (fvSortCol === 'price')  { va = ar.price || 0;   vb = br.price || 0; }
-    else if (fvSortCol === 'fair')   { va = ar.fairValue || 0; vb = br.fairValue || 0; }
-    else if (fvSortCol === 'diff')   { va = ar.diffPct ?? -999; vb = br.diffPct ?? -999; }
-    else if (fvSortCol === 'status') { va = statusOrderVal(ar.status); vb = statusOrderVal(br.status); }
-    else                              { va = a.ticker; vb = b.ticker; }
+    if      (fvSortCol === 'ticker')     { va = a.ticker;             vb = b.ticker; }
+    else if (fvSortCol === 'type')       { va = ar.type || 'z';       vb = br.type || 'z'; }
+    else if (fvSortCol === 'price')      { va = ar.price ?? -1;       vb = br.price ?? -1; }
+    else if (fvSortCol === 'fair')       { va = ar.fairValue ?? -1;   vb = br.fairValue ?? -1; }
+    else if (fvSortCol === 'upside')     { va = ar.upsidePct ?? -999; vb = br.upsidePct ?? -999; }
+    else if (fvSortCol === 'status')     { va = statusOrderVal(ar.status); vb = statusOrderVal(br.status); }
+    else if (fvSortCol === 'confidence') { va = confidenceOrderVal(ar.confidence); vb = confidenceOrderVal(br.confidence); }
+    else                                 { va = a.ticker;             vb = b.ticker; }
     if (va < vb) return -fvSortDir;
     if (va > vb) return  fvSortDir;
     return 0;
   });
+
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:24px">Žádné výsledky.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--muted); padding:24px">Žádné výsledky odpovídající filtrům.</td></tr>`;
     return;
   }
+
   tbody.innerHTML = rows.map(({ticker, r}) => {
-    if (r.error) {
-      return `<tr>
-        <td><strong>${ticker}</strong></td>
-        <td colspan="5" style="color:var(--bear); font-size:11px">${r.error}</td>
-        <td>—</td>
-      </tr>`;
-    }
     const sCls = r.status === 'UNDERVALUED' ? 'fv-status-under'
-               : r.status === 'OVERVALUED' ? 'fv-status-over' : 'fv-status-fair';
-    const dCls = r.diffPct > 5 ? 'fv-diff-pos' : r.diffPct < -5 ? 'fv-diff-neg' : 'fv-diff-neu';
-    const sign = r.diffPct > 0 ? '+' : '';
-    const typeCls = `fv-type-${r.type || 'stock'}`;
+               : r.status === 'OVERVALUED' ? 'fv-status-over'
+               : r.status === 'FAIR'       ? 'fv-status-fair'
+               : 'fv-status-na';
+    const uCls = r.upsidePct == null ? 'fv-diff-neu'
+               : r.upsidePct >  5     ? 'fv-diff-pos'
+               : r.upsidePct < -5     ? 'fv-diff-neg' : 'fv-diff-neu';
+    const sign = (r.upsidePct ?? 0) > 0 ? '+' : '';
+    const typeCls = `fv-type-${r.type || 'unknown'}`;
+    const confColor = r.confidence === 'HIGH'   ? 'var(--bull)'
+                    : r.confidence === 'MEDIUM' ? 'var(--gold)'
+                    : r.confidence === 'LOW'    ? 'var(--text-dim)'
+                    : 'var(--muted)';
     return `<tr>
       <td><strong>${ticker}</strong></td>
       <td><span class="fv-type-pill ${typeCls}">${(r.type||'').toUpperCase()||'—'}</span></td>
-      <td>$${r.price ? r.price.toFixed(2) : '—'}</td>
-      <td>$${r.fairValue ? r.fairValue.toFixed(2) : '—'}</td>
-      <td class="${dCls}">${r.diffPct != null ? sign + r.diffPct.toFixed(1) + '%' : '—'}</td>
+      <td>${r.price != null ? '$' + r.price.toFixed(2) : '—'}</td>
+      <td>${r.fairValue != null ? '$' + r.fairValue.toFixed(2) : '<span style="color:var(--muted)">N/A</span>'}</td>
+      <td class="${uCls}">${r.upsidePct != null ? sign + r.upsidePct.toFixed(1) + '%' : '<span style="color:var(--muted)">N/A</span>'}</td>
       <td><span class="fv-status ${sCls}">${r.status || 'N/A'}</span></td>
+      <td><span style="font-size:10px; color:${confColor}; border:1px solid ${confColor}; padding:1px 5px; border-radius:3px">${r.confidence || 'N/A'}</span></td>
+      <td style="font-size:10px; color:var(--muted)">${r.method || '—'}</td>
       <td><button class="fv-detail-btn" onclick="fvShowDetail('${ticker}')">Detail</button></td>
     </tr>`;
   }).join('');
@@ -2273,27 +2357,19 @@ function renderWatchlist() {
 function fvShowDetail(ticker) {
   const r = fvWatchlistData[ticker];
   if (!r) return;
-  const modalId = 'fv-modal-' + ticker;
+  const modalId = 'fv-modal-' + ticker.replace(/[^A-Z0-9]/g, '_');
   let modal = document.getElementById(modalId);
   if (modal) { modal.remove(); return; }  // toggle
   modal = document.createElement('div');
   modal.id = modalId;
   modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
   modal.onclick = e => { if (e.target === modal) modal.remove(); };
-  modal.innerHTML = `<div style="max-width:720px; width:100%; max-height:90vh; overflow:auto; background:var(--surface); border:1px solid var(--border2); border-radius:8px; padding:6px">
+  modal.innerHTML = `<div style="max-width:780px; width:100%; max-height:90vh; overflow:auto; background:var(--surface); border:1px solid var(--border2); border-radius:8px; padding:6px">
     <div style="text-align:right;padding:4px 8px"><button onclick="document.getElementById('${modalId}').remove()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer">×</button></div>
     ${renderFvCard(ticker, r)}
   </div>`;
   document.body.appendChild(modal);
 }
-
-// Pre-fill FMP key on load
-window.addEventListener('load', () => {
-  if (fmpKey) {
-    const el = document.getElementById('fmp-key-input');
-    if (el) el.value = fmpKey;
-  }
-});
 </script>
 </body>
 </html>
