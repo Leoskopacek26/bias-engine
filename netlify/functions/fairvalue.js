@@ -49,10 +49,60 @@ async function fetchJson(url) {
 // ── FMP endpoints ────────────────────────────────────────────────────────────
 const FMP = 'https://financialmodelingprep.com/api/v3';
 
-async function fmpFetch(path, key) {
+// Detailní fetcher — vrací { data, error, status } abychom viděli proč FMP selhal
+async function fmpFetchRaw(path, key) {
   const sep = path.includes('?') ? '&' : '?';
-  const data = await fetchJson(`${FMP}${path}${sep}apikey=${encodeURIComponent(key)}`);
-  return Array.isArray(data) ? data : (data || null);
+  const url = `${FMP}${path}${sep}apikey=${encodeURIComponent(key)}`;
+  try {
+    const r = await httpsGet(url);
+    if (r.statusCode < 200 || r.statusCode >= 300) {
+      return { error: `HTTP ${r.statusCode}`, status: r.statusCode, body: r.body.slice(0, 200) };
+    }
+    let data;
+    try { data = JSON.parse(r.body); } catch (e) {
+      return { error: 'Invalid JSON', body: r.body.slice(0, 200) };
+    }
+    // FMP vrací errory ve formě { "Error Message": "..." } nebo { "error": "..." }
+    if (data && (data['Error Message'] || data.error || data.message)) {
+      return { error: data['Error Message'] || data.error || data.message, status: r.statusCode };
+    }
+    if (Array.isArray(data) && data.length === 0) {
+      return { error: 'Prázdný výsledek (ticker neexistuje nebo FMP free tier neobsahuje tento endpoint)', status: r.statusCode };
+    }
+    return { data };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+async function fmpFetch(path, key) {
+  const r = await fmpFetchRaw(path, key);
+  if (r.error) return null;
+  return r.data;
+}
+
+// ── YAHOO FINANCE fallback (bez klíče) ───────────────────────────────────────
+// Vrací { price, eps, pe, marketCap, sector?, isEtf? }
+async function yahooQuote(ticker) {
+  // Yahoo quoteSummary vyžaduje cookies — používáme jednodušší v8/chart endpoint
+  // pro cenu a quoteType pro typ instrumentu
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=1d&interval=1d`;
+  const data = await fetchJson(url);
+  if (!data || !data.chart || !data.chart.result || !data.chart.result[0]) return null;
+  const meta = data.chart.result[0].meta;
+  if (!meta) return null;
+  const price = meta.regularMarketPrice ?? meta.previousClose ?? null;
+  if (!price) return null;
+  return {
+    price,
+    currency: meta.currency,
+    exchangeName: meta.exchangeName,
+    instrumentType: meta.instrumentType,  // 'EQUITY', 'ETF', 'CRYPTOCURRENCY', etc.
+    isEtf: meta.instrumentType === 'ETF',
+    fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh,
+    fiftyTwoWeekLow: meta.fiftyTwoWeekLow,
+    chartPreviousClose: meta.chartPreviousClose,
+  };
 }
 
 // ── Sector P/E benchmarks (S&P 500 dlouhodobé mediány, fallback když chybí) ──
@@ -275,35 +325,121 @@ async function valueOne(ticker, fmpKey, debug) {
   if (isCrypto(ticker)) {
     return await valueCrypto(ticker, debug);
   }
-  if (!fmpKey) {
-    return { error: 'Chybí FMP API klíč', type: 'unknown' };
+
+  // 1) Pokus o FMP profil (pokud máme klíč)
+  let profile = null;
+  let fmpError = null;
+  let fmpStatus = null;
+
+  if (fmpKey) {
+    const profileRes = await fmpFetchRaw(`/profile/${ticker}`, fmpKey);
+    if (profileRes.error) {
+      fmpError = profileRes.error;
+      fmpStatus = profileRes.status;
+      debug.push(`[${ticker}] FMP /profile selhal: ${profileRes.error}${profileRes.status ? ' (HTTP ' + profileRes.status + ')' : ''}`);
+    } else {
+      profile = Array.isArray(profileRes.data) ? profileRes.data[0] : profileRes.data;
+      if (!profile) {
+        fmpError = 'Profile prázdný';
+        debug.push(`[${ticker}] FMP /profile vrátil prázdný objekt`);
+      }
+    }
+  } else {
+    fmpError = 'Chybí FMP API klíč';
   }
-  // Profil rozhodne stock vs ETF
-  const profileArr = await fmpFetch(`/profile/${ticker}`, fmpKey);
-  const profile = Array.isArray(profileArr) ? profileArr[0] : profileArr;
+
+  // 2) Když FMP profile nedostupný → Yahoo Finance fallback
   if (!profile) {
-    return { error: 'Ticker nenalezen ve FMP', type: 'unknown' };
+    debug.push(`[${ticker}] Fallback → Yahoo Finance`);
+    const yq = await yahooQuote(ticker);
+    if (!yq) {
+      return {
+        error: fmpError ? `FMP: ${fmpError}; Yahoo: ticker nenalezen` : 'Žádný zdroj dat nedostupný',
+        type: 'unknown',
+        data: { fmpError, fmpStatus, source: 'none' },
+      };
+    }
+
+    // ETF detekovaný Yahoo: bez FMP nemáme P/E ani expense ratio → jen cena
+    if (yq.isEtf) {
+      const w52h = yq.fiftyTwoWeekHigh, w52l = yq.fiftyTwoWeekLow;
+      if (w52h && w52l) {
+        const w52mid = (w52h + w52l) / 2;
+        const diffPct = ((w52mid - yq.price) / yq.price) * 100;
+        return {
+          type: 'etf',
+          price: yq.price,
+          fairValue: +w52mid.toFixed(2),
+          diffPct: +diffPct.toFixed(1),
+          status: classify(diffPct),
+          breakdown: [{ method: '52W mid (Yahoo fallback)', value: +w52mid.toFixed(2), weight: 1.0 }],
+          reason: `ETF — pouze 52W range $${w52l.toFixed(2)}–$${w52h.toFixed(2)} (FMP nedostupné: ${fmpError})`,
+          data: { source: 'yahoo', currency: yq.currency, exchange: yq.exchangeName, w52h, w52l, fmpError, fmpStatus },
+          warning: 'Pouze orientační (FMP fundamentální data nedostupná)',
+        };
+      }
+      return {
+        type: 'etf',
+        price: yq.price,
+        error: `ETF — pouze cena z Yahoo, FMP nedostupné: ${fmpError}`,
+        data: { source: 'yahoo', currency: yq.currency, fmpError, fmpStatus },
+      };
+    }
+
+    // Stock z Yahoo: použij 52W mid jako orientační férovou hodnotu
+    const w52h = yq.fiftyTwoWeekHigh, w52l = yq.fiftyTwoWeekLow;
+    if (w52h && w52l) {
+      const w52mid = (w52h + w52l) / 2;
+      const diffPct = ((w52mid - yq.price) / yq.price) * 100;
+      return {
+        type: 'stock',
+        price: yq.price,
+        fairValue: +w52mid.toFixed(2),
+        diffPct: +diffPct.toFixed(1),
+        status: classify(diffPct),
+        breakdown: [{ method: '52W mid (Yahoo fallback)', value: +w52mid.toFixed(2), weight: 1.0 }],
+        reason: `52W range $${w52l.toFixed(2)}–$${w52h.toFixed(2)} (FMP nedostupné: ${fmpError})`,
+        data: { source: 'yahoo', currency: yq.currency, exchange: yq.exchangeName, w52h, w52l, fmpError, fmpStatus },
+        warning: 'Orientační — FMP fundamentální data (DCF, P/E, growth) nedostupná',
+      };
+    }
+
+    return {
+      type: 'unknown',
+      price: yq.price,
+      error: `FMP nedostupné (${fmpError}), Yahoo má jen aktuální cenu`,
+      data: { source: 'yahoo', fmpError, fmpStatus },
+    };
   }
-  const quoteArr = await fmpFetch(`/quote/${ticker}`, fmpKey);
+
+  // 3) FMP profile dostupný → načti zbytek
+  const quoteRes = await fmpFetchRaw(`/quote/${ticker}`, fmpKey);
+  const quoteArr = quoteRes.data;
   const quote = Array.isArray(quoteArr) ? quoteArr[0] : quoteArr;
 
   if (profile.isEtf || profile.isFund) {
-    const etfInfoArr = await fmpFetch(`/etf-info?symbol=${ticker}`, fmpKey);
+    const etfInfoRes = await fmpFetchRaw(`/etf-info?symbol=${ticker}`, fmpKey);
+    const etfInfoArr = etfInfoRes.data;
     const etfInfo = Array.isArray(etfInfoArr) ? etfInfoArr[0] : etfInfoArr;
+    if (etfInfoRes.error) debug.push(`[${ticker}] FMP /etf-info: ${etfInfoRes.error}`);
     return valueETF(profile, quote, etfInfo, debug, ticker);
   }
 
   // Akcie: pull ratios + metrics + growth + DCF paralelně
-  const [ratiosArr, metricsArr, growthArr, dcfArr] = await Promise.all([
-    fmpFetch(`/ratios-ttm/${ticker}`, fmpKey),
-    fmpFetch(`/key-metrics-ttm/${ticker}`, fmpKey),
-    fmpFetch(`/financial-growth/${ticker}?limit=1`, fmpKey),
-    fmpFetch(`/discounted-cash-flow/${ticker}`, fmpKey),
+  const [ratiosRes, metricsRes, growthRes, dcfRes] = await Promise.all([
+    fmpFetchRaw(`/ratios-ttm/${ticker}`, fmpKey),
+    fmpFetchRaw(`/key-metrics-ttm/${ticker}`, fmpKey),
+    fmpFetchRaw(`/financial-growth/${ticker}?limit=1`, fmpKey),
+    fmpFetchRaw(`/discounted-cash-flow/${ticker}`, fmpKey),
   ]);
-  const ratios = Array.isArray(ratiosArr) ? ratiosArr[0] : ratiosArr;
-  const metrics = Array.isArray(metricsArr) ? metricsArr[0] : metricsArr;
-  const growth = Array.isArray(growthArr) ? growthArr[0] : growthArr;
-  const dcf = Array.isArray(dcfArr) ? dcfArr[0] : dcfArr;
+  if (ratiosRes.error)  debug.push(`[${ticker}] FMP /ratios-ttm: ${ratiosRes.error}`);
+  if (metricsRes.error) debug.push(`[${ticker}] FMP /key-metrics-ttm: ${metricsRes.error}`);
+  if (growthRes.error)  debug.push(`[${ticker}] FMP /financial-growth: ${growthRes.error}`);
+  if (dcfRes.error)     debug.push(`[${ticker}] FMP /discounted-cash-flow: ${dcfRes.error}`);
+  const ratios  = Array.isArray(ratiosRes.data)  ? ratiosRes.data[0]  : ratiosRes.data;
+  const metrics = Array.isArray(metricsRes.data) ? metricsRes.data[0] : metricsRes.data;
+  const growth  = Array.isArray(growthRes.data)  ? growthRes.data[0]  : growthRes.data;
+  const dcf     = Array.isArray(dcfRes.data)     ? dcfRes.data[0]     : dcfRes.data;
   return valueStock(profile, quote, ratios, metrics, growth, dcf, debug, ticker);
 }
 
@@ -326,6 +462,23 @@ exports.handler = async function(event) {
 
   console.log(`\n=== FAIR VALUE RUN (${tickers.length} tickerů) ===`);
   console.log(`FMP key: ${fmpKey ? 'YES (' + fmpKey.slice(0, 6) + '…)' : 'NO'}`);
+
+  // ── FMP zdravotní test: jeden ping na známý ticker abychom hned věděli proč klíč nefunguje ──
+  let fmpHealth = { ok: false, error: 'untested' };
+  if (fmpKey) {
+    const ping = await fmpFetchRaw('/profile/AAPL', fmpKey);
+    if (ping.error) {
+      fmpHealth = { ok: false, error: ping.error, status: ping.status, body: ping.body };
+      console.log(`FMP HEALTH: ✗ ${ping.error}${ping.status ? ' (HTTP ' + ping.status + ')' : ''}`);
+      debug.push(`FMP health-check: ${ping.error}${ping.status ? ' HTTP ' + ping.status : ''}`);
+    } else {
+      const p = Array.isArray(ping.data) ? ping.data[0] : ping.data;
+      fmpHealth = { ok: true, sampleTicker: 'AAPL', sampleName: p?.companyName, samplePrice: p?.price };
+      console.log(`FMP HEALTH: ✓ AAPL = ${p?.companyName} @ $${p?.price}`);
+    }
+  } else {
+    fmpHealth = { ok: false, error: 'No FMP key provided' };
+  }
 
   const t0 = Date.now();
   // Pro výkon: chunk po 6 paralelně (FMP free tier nemá rate limit per-min, ale buďme slušní)
@@ -369,6 +522,7 @@ exports.handler = async function(event) {
       stats,
       tickers,
       fmpKeyUsed: !!fmpKey,
+      fmpHealth,
       ms,
       debug: debug.slice(-300),
       fetched_at: fetchedAt,
