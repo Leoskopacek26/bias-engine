@@ -162,6 +162,7 @@
   .cat-fx  { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent)44; }
   .cat-cross { background: #7b8fc420; color: #a0b0e0; border: 1px solid #7b8fc455; }
   .cat-com { background: var(--gold-dim); color: var(--gold); border: 1px solid var(--gold)44; }
+  .cat-crypto { background: #f7931a20; color: #f7931a; border: 1px solid #f7931a55; }
   .bias-badge {
     font-size: 11px; padding: 4px 10px; border-radius: 3px;
     font-weight: 500; display: inline-block; min-width: 68px; text-align: center;
@@ -369,6 +370,55 @@
   .rsi-os    { color:var(--bull); }
   .rsi-mid   { color:var(--muted); }
 
+  /* TIMEFRAME SEMAFOR */
+  .tf-cell { padding:6px 4px !important; text-align:center; }
+  .tf-pill {
+    display:inline-block; min-width:64px; padding:3px 6px; border-radius:3px;
+    font-size:10px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
+    border:1px solid;
+  }
+  .tf-pill-bull { background:var(--bull-dim); color:var(--bull); border-color:var(--bull-mid); }
+  .tf-pill-bear { background:var(--bear-dim); color:var(--bear); border-color:var(--bear-mid); }
+  .tf-pill-neu  { background:var(--surface2); color:var(--muted); border-color:var(--border2); }
+  .tf-pill-na   { background:var(--surface2); color:var(--dim); border-color:var(--border); }
+
+  /* HEADER TOOLTIP */
+  .th-tooltip { position:relative; cursor:help; }
+  .th-tooltip:hover::after {
+    content: attr(data-tooltip);
+    position:absolute;
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    padding: 8px 11px;
+    font-size: 11px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    line-height: 1.5;
+    white-space: normal;
+    width: 240px;
+    z-index: 50;
+    box-shadow: 0 4px 14px rgba(0,0,0,.4);
+    pointer-events: none;
+  }
+  .th-tooltip:hover::before {
+    content: '';
+    position:absolute;
+    top: calc(100% + 1px);
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-bottom-color: var(--border2);
+    z-index: 51;
+    pointer-events: none;
+  }
+  .bias-table th.sortable .sort-icon { margin-left:3px; opacity:.5; font-size:9px; }
+
   @media (max-width: 640px) {
     .main { padding: 16px; }
     .header { padding: 14px 16px; }
@@ -446,12 +496,17 @@
     <div class="table-wrap">
       <table class="bias-table" id="bias-table">
         <thead><tr id="sort-header">
-          <th onclick="sortBy('sym')" class="sortable" data-col="sym">Instrument <span class="sort-icon" id="si-sym"></span></th>
-          <th onclick="sortBy('bias')" class="sortable" data-col="bias">Bias <span class="sort-icon" id="si-bias"></span></th>
-          <th onclick="sortBy('bull')" class="sortable" data-col="bull">Bullish <span class="sort-icon" id="si-bull"></span></th>
-          <th onclick="sortBy('bear')" class="sortable" data-col="bear">Bearish <span class="sort-icon" id="si-bear"></span></th>
-          <th onclick="sortBy('conf')" class="sortable" data-col="conf">Confidence <span class="sort-icon" id="si-conf"></span></th>
-          <th>Key drivers</th>
+          <th onclick="sortBy('sym')" class="sortable th-tooltip" data-col="sym"
+              data-tooltip="Symbol obchodovaného instrumentu — FX páry, komodity (zlato, stříbro) a kryptoměny.">Instrument <span class="sort-icon" id="si-sym"></span></th>
+          <th onclick="sortBy('bias')" class="sortable th-tooltip" data-col="bias"
+              data-tooltip="Fundamentální bias dnešního dne na základě makro faktorů (DXY, výnosy, CPI, NFP, risk sentiment, geopolitika). Bullish = nákupní směr, Bearish = prodejní, Neutral = bez jasného směru.">Bias <span class="sort-icon" id="si-bias"></span></th>
+          <th onclick="sortBy('bull')" class="sortable th-tooltip" data-col="bull"
+              data-tooltip="Pravděpodobnost (%) býčího (vzestupného) směru, vypočítaná logistickou funkcí ze score makro faktorů.">Bullish <span class="sort-icon" id="si-bull"></span></th>
+          <th onclick="sortBy('bear')" class="sortable th-tooltip" data-col="bear"
+              data-tooltip="Pravděpodobnost (%) medvědího (sestupného) směru. Doplňuje Bullish do 100 %.">Bearish <span class="sort-icon" id="si-bear"></span></th>
+          <th onclick="sortBy('conf')" class="sortable th-tooltip" data-col="conf"
+              data-tooltip="Síla signálu na škále 1–5 podle absolutního skóre. Vyšší conf = silnější konvergence makro faktorů.">Confidence <span class="sort-icon" id="si-conf"></span></th>
+          <th class="th-tooltip" data-tooltip="Top 3 makro faktory s největším vlivem (kladným nebo záporným) na dnešní bias.">Key drivers</th>
         </tr></thead>
         <tbody id="bias-tbody">
           <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px">Connect your Claude API key and click Refresh to generate today's bias signals.</td></tr>
@@ -520,28 +575,56 @@
   <!-- TECHNICAL ANALYSIS TAB -->
   <div class="tab-panel" id="tab-technical">
     <div class="tech-info-bar">
-      Technická analýza je vypočítána z ECB historických kurzů (posledních 90 dnů).
-      Používá EMA20/EMA50 křížení, RSI(14) a strukturu svíček pro denní bias.
+      Technická analýza stahuje multi-timeframe data z Yahoo Finance (5m, 15m, 30m, 1h, 4h, 1D).
+      Bias semafor v každém timeframe je odvozen z EMA20/50 křížení, RSI(14) a 5-svíčkového momentum.
       <span id="tech-status" style="margin-left:8px;color:var(--bull)"></span>
     </div>
     <div class="table-wrap">
       <table class="bias-table" id="tech-table">
-        <thead><tr>
-          <th>Instrument</th>
-          <th>Tech bias (1D)</th>
-          <th>RSI (14)</th>
-          <th>EMA trend</th>
-          <th>Momentum</th>
-          <th>Kombinovaný bias</th>
-          <th>Shoda</th>
+        <thead><tr id="tech-sort-header">
+          <th class="sortable th-tooltip" data-tcol="sym"
+              data-tooltip="Symbol obchodovaného instrumentu — FX páry, komodity nebo kryptoměny."
+              onclick="techSortBy('sym')">Instrument <span class="sort-icon" id="tsi-sym"></span></th>
+          <th class="sortable th-tooltip tf-cell" data-tcol="tf_5m"
+              data-tooltip="Bias na 5-minutovém grafu. Velmi krátkodobý signál — reaguje na intraday momentum a šum. Vhodný pro skalpování."
+              onclick="techSortBy('tf_5m')">5m <span class="sort-icon" id="tsi-tf_5m"></span></th>
+          <th class="sortable th-tooltip tf-cell" data-tcol="tf_15m"
+              data-tooltip="Bias na 15-minutovém grafu. Krátkodobý směr během obchodní seance. Vhodné pro intraday vstupy."
+              onclick="techSortBy('tf_15m')">15m <span class="sort-icon" id="tsi-tf_15m"></span></th>
+          <th class="sortable th-tooltip tf-cell" data-tcol="tf_30m"
+              data-tooltip="Bias na 30-minutovém grafu. Vyhlazený krátkodobý trend, pomáhá filtrovat 5m/15m šum."
+              onclick="techSortBy('tf_30m')">30m <span class="sort-icon" id="tsi-tf_30m"></span></th>
+          <th class="sortable th-tooltip tf-cell" data-tcol="tf_1h"
+              data-tooltip="Bias na hodinovém grafu. Hlavní intraday timeframe — typický horizont swing trade pozic držených hodiny."
+              onclick="techSortBy('tf_1h')">1h <span class="sort-icon" id="tsi-tf_1h"></span></th>
+          <th class="sortable th-tooltip tf-cell" data-tcol="tf_4h"
+              data-tooltip="Bias na 4-hodinovém grafu. Středně-dobý trend — oblíbený mezi swing tradery, drží trade přes noc/dny."
+              onclick="techSortBy('tf_4h')">4h <span class="sort-icon" id="tsi-tf_4h"></span></th>
+          <th class="sortable th-tooltip tf-cell" data-tcol="tf_1D"
+              data-tooltip="Bias na denním grafu. Hlavní směr trhu — slouží jako kontextový filtr pro nižší timeframes."
+              onclick="techSortBy('tf_1D')">1D <span class="sort-icon" id="tsi-tf_1D"></span></th>
+          <th class="sortable th-tooltip" data-tcol="rsi"
+              data-tooltip="Relative Strength Index (14) na denním grafu. Hodnoty: <30 oversold (přeprodáno, potenciální obrat nahoru), >70 overbought (překoupeno, riziko korekce)."
+              onclick="techSortBy('rsi')">RSI (14) <span class="sort-icon" id="tsi-rsi"></span></th>
+          <th class="th-tooltip"
+              data-tooltip="Vztah mezi 20-denní a 50-denní EMA. EMA20 > EMA50 = krátkodobý uptrend. EMA20 < EMA50 = krátkodobý downtrend.">EMA trend</th>
+          <th class="sortable th-tooltip" data-tcol="momentum"
+              data-tooltip="Procentní pohyb ceny za posledních 5 dnů. Pozitivní = býčí momentum, negativní = medvědí. Hodnota nad ±0.3% má váhu v bias score."
+              onclick="techSortBy('momentum')">Momentum <span class="sort-icon" id="tsi-momentum"></span></th>
+          <th class="sortable th-tooltip" data-tcol="combo"
+              data-tooltip="Sloučení 1D technického biasu s fundamentálním biasem z dashboardu. Bullish/Bearish pouze když oba souhlasí. Konflikt = TA a fundamenty si protiřečí."
+              onclick="techSortBy('combo')">Kombinovaný bias <span class="sort-icon" id="tsi-combo"></span></th>
+          <th class="sortable th-tooltip" data-tcol="agree"
+              data-tooltip="Indikátor souhlasu mezi technickou analýzou (1D) a fundamentálním biasem. ✓ Shoda = vysoká důvěra ve směr. ✗ Konflikt = signály se rozcházejí, opatrnost."
+              onclick="techSortBy('agree')">Shoda <span class="sort-icon" id="tsi-agree"></span></th>
         </tr></thead>
         <tbody id="tech-tbody">
-          <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:32px">Klikni "Vypočítat" pro načtení technické analýzy.</td></tr>
+          <tr><td colspan="12" style="text-align:center;color:var(--muted);padding:32px">Klikni "Vypočítat" pro načtení technické analýzy.</td></tr>
         </tbody>
       </table>
     </div>
     <button class="btn btn-primary" style="margin-top:14px" onclick="runTechnical()" id="tech-run-btn">Vypočítat technickou analýzu</button>
-    <span style="font-size:11px;color:var(--muted);margin-left:12px">Stahuje ECB historická data (~5 sec)</span>
+    <span style="font-size:11px;color:var(--muted);margin-left:12px">Stahuje multi-timeframe data z Yahoo (~10–15 sec)</span>
   </div>
 
   <!-- TRADE FILTER TAB -->
@@ -593,6 +676,9 @@ const INSTRUMENTS = [
   // Komodity
   {sym:'XAUUSD', cat:'com', base:'XAU', quote:'USD', grp:'com'},
   {sym:'XAGUSD', cat:'com', base:'XAG', quote:'USD', grp:'com'},
+  // Krypto
+  {sym:'BTCUSD', cat:'crypto', base:'BTC', quote:'USD', grp:'crypto'},
+  {sym:'ETHUSD', cat:'crypto', base:'ETH', quote:'USD', grp:'crypto'},
 ];
 
 const FACTORS = ['dxy','yields10y','cpi_surprise','nfp_surprise','risk_sentiment','geo_risk'];
@@ -631,6 +717,9 @@ const DEFAULT_WEIGHTS = {
   NZDJPY: {dxy:-0.02, yields10y:+0.22, cpi_surprise:-0.03, nfp_surprise:-0.02, risk_sentiment:+0.18, geo_risk:-0.11},
   XAUUSD: {dxy:-0.38, yields10y:-0.28, cpi_surprise:+0.10, nfp_surprise:-0.08, risk_sentiment:-0.03, geo_risk:+0.13},
   XAGUSD: {dxy:-0.32, yields10y:-0.24, cpi_surprise:+0.08, nfp_surprise:-0.06, risk_sentiment:+0.10, geo_risk:+0.10},
+  // Krypto — silně risk-on aktiva, negativní korelace s DXY a real yields
+  BTCUSD: {dxy:-0.30, yields10y:-0.25, cpi_surprise:+0.10, nfp_surprise:+0.04, risk_sentiment:+0.35, geo_risk:+0.05},
+  ETHUSD: {dxy:-0.32, yields10y:-0.28, cpi_surprise:+0.08, nfp_surprise:+0.03, risk_sentiment:+0.40, geo_risk:-0.02},
 };
 
 let weights = JSON.parse(JSON.stringify(DEFAULT_WEIGHTS));
@@ -935,8 +1024,8 @@ function renderTable() {
   tbody.innerHTML = sorted.map(r => {
     const inst = INSTRUMENTS.find(i => i.sym === r.sym);
     const grp = inst ? inst.grp : 'major';
-    const badgeCls = grp==='com' ? 'cat-com' : grp==='cross' ? 'cat-cross' : 'cat-fx';
-    const badgeTxt = grp==='com' ? 'Commodity' : grp==='cross' ? 'Cross' : 'Major';
+    const badgeCls = grp==='crypto' ? 'cat-crypto' : grp==='com' ? 'cat-com' : grp==='cross' ? 'cat-cross' : 'cat-fx';
+    const badgeTxt = grp==='crypto' ? 'Crypto' : grp==='com' ? 'Commodity' : grp==='cross' ? 'Cross' : 'Major';
     return `
     <tr onclick="selectRow('${r.sym}')" id="row-${r.sym}">
       <td><span class="sym">${r.sym}</span><span class="cat-badge ${badgeCls}">${badgeTxt}</span></td>
@@ -1494,9 +1583,11 @@ async function runTechnical() {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     if (data.error) throw new Error(data.error);
-    // data.results = { EURUSD: {bias, rsi, emaTrend, momentum, conf}, ... }
-    renderTechnicalResults(data.results, data.days);
-    status.textContent = data.days + ' dnů dat · ' + data.start + ' → ' + data.end;
+    // data.results = { EURUSD: {bias, rsi, emaTrend, momentum, conf, tfBias{...}}, ... }
+    renderTechnicalResults(data.results, data.timeframes ? data.timeframes.length : 6);
+    const src = data.source || 'Yahoo Finance';
+    const fetched = data.fetched_at ? new Date(data.fetched_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+    status.textContent = src + (fetched ? ' · ' + fetched : '');
     btn.textContent = 'Obnovit';
   } catch(e) {
     status.textContent = 'Chyba: ' + e.message;
@@ -1505,16 +1596,103 @@ async function runTechnical() {
   btn.disabled = false;
 }
 
+// ── TECHNICKÁ TABULKA — řazení & vykreslení ──────────────────────────────────
+let techRowsData = [];          // poslední data pro re-render při řazení
+let techDays = 0;
+let techSortCol = null;
+let techSortDir = 1;            // 1 = asc, -1 = desc
+const TF_KEYS = ['5m', '15m', '30m', '1h', '4h', '1D'];
+
+function biasOrderVal(b) {
+  if (b === 'Bullish') return 3;
+  if (b === 'Neutral') return 2;
+  if (b === 'Bearish') return 1;
+  return 0; // 'Konflikt' / fallback
+}
+function comboOrderVal(c) {
+  if (c === 'Bullish')  return 3;
+  if (c === 'Neutral')  return 2;
+  if (c === 'Bearish')  return 1;
+  if (c === 'Konflikt') return 0;
+  return 2;
+}
+function agreeOrderVal(a) {
+  if (a === 'yes')     return 3;
+  if (a === 'partial') return 2;
+  if (a === 'no')      return 1;
+  return 0; // 'na'
+}
+
+function techSortBy(col) {
+  if (techSortCol === col) {
+    techSortDir *= -1;
+  } else {
+    techSortCol = col;
+    // Default: u jména a mom abecedně/nízké první, jinak high first
+    techSortDir = (col === 'sym') ? 1 : -1;
+  }
+  renderTechRows();
+  updateTechSortIcons();
+}
+
+function updateTechSortIcons() {
+  const cols = ['sym','tf_5m','tf_15m','tf_30m','tf_1h','tf_4h','tf_1D','rsi','momentum','combo','agree'];
+  cols.forEach(c => {
+    const el = document.getElementById('tsi-' + c);
+    const th = document.querySelector(`#tech-sort-header [data-tcol="${c}"]`);
+    if (!el || !th) return;
+    if (c === techSortCol) {
+      el.className = 'sort-icon ' + (techSortDir === 1 ? 'asc' : 'desc');
+      th.classList.add('sort-active');
+    } else {
+      el.className = 'sort-icon none';
+      th.classList.remove('sort-active');
+    }
+  });
+}
+
+function getSortedTechRows() {
+  if (!techSortCol) return techRowsData;
+  return [...techRowsData].sort((a, b) => {
+    let va, vb;
+    if (techSortCol === 'sym')      { return techSortDir * a.sym.localeCompare(b.sym); }
+    if (techSortCol.startsWith('tf_')) {
+      const k = techSortCol.slice(3);
+      va = biasOrderVal(a.tfBias[k]); vb = biasOrderVal(b.tfBias[k]);
+    }
+    else if (techSortCol === 'rsi')      { va = a.rsi;        vb = b.rsi; }
+    else if (techSortCol === 'momentum') { va = a.momentumNum; vb = b.momentumNum; }
+    else if (techSortCol === 'combo')    { va = comboOrderVal(a.combo); vb = comboOrderVal(b.combo); }
+    else if (techSortCol === 'agree')    { va = agreeOrderVal(a.agree); vb = agreeOrderVal(b.agree); }
+    else return 0;
+    return techSortDir * (va - vb);
+  });
+}
+
+function tfPillClass(b) {
+  if (b === 'Bullish') return 'tf-pill tf-pill-bull';
+  if (b === 'Bearish') return 'tf-pill tf-pill-bear';
+  if (b === 'Neutral') return 'tf-pill tf-pill-neu';
+  return 'tf-pill tf-pill-na';
+}
+function tfPillLabel(b) {
+  if (b === 'Bullish') return 'BULL';
+  if (b === 'Bearish') return 'BEAR';
+  if (b === 'Neutral') return 'NEUTRAL';
+  return '—';
+}
+
 function renderTechnicalResults(results, days) {
   const tbody = document.getElementById('tech-tbody');
-  if (!results) { tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted);padding:20px">Žádná data</td></tr>'; return; }
+  if (!results) { tbody.innerHTML = '<tr><td colspan="12" style="color:var(--muted);padding:20px">Žádná data</td></tr>'; return; }
+  techDays = days;
 
-  tbody.innerHTML = INSTRUMENTS.map(inst => {
-    const tech = results[inst.sym] || { bias:'Neutral', rsi:50, emaTrend:'—', momentum:'0.00%', conf:0 };
+  // Sestav řádky
+  techRowsData = INSTRUMENTS.map(inst => {
+    const tech = results[inst.sym] || { bias:'Neutral', rsi:50, emaTrend:'—', momentum:'0.00%', conf:0, tfBias:{} };
     const fund = biasResults.find(r => r.sym === inst.sym);
     const fundBias = fund ? fund.bias : 'Neutral';
 
-    // Kombinovaný bias
     let combo = 'Neutral';
     if (tech.bias !== 'Neutral' && fundBias !== 'Neutral') {
       combo = tech.bias === fundBias ? tech.bias : 'Konflikt';
@@ -1524,24 +1702,58 @@ function renderTechnicalResults(results, days) {
     const agree = tech.conf === 0 ? 'na'
       : tech.bias === fundBias ? 'yes'
       : (tech.bias === 'Neutral' || fundBias === 'Neutral') ? 'partial' : 'no';
-    const agreeText = agree==='yes' ? '✓ Shoda' : agree==='partial' ? '~ Částečně' : agree==='no' ? '✗ Konflikt' : '—';
-    const agreeCls  = agree==='yes' ? 'agree-yes' : agree==='no' ? 'agree-no' : 'agree-na';
 
-    const grp = inst.grp;
-    const bc = grp==='com'?'cat-com':grp==='cross'?'cat-cross':'cat-fx';
-    const bl = grp==='com'?'Commodity':grp==='cross'?'Cross':'Major';
-    const tb = tech.bias==='Bullish'?'tech-bull':tech.bias==='Bearish'?'tech-bear':'tech-neu';
-    const rsiCls = tech.rsi > 70 ? 'rsi-ob' : tech.rsi < 30 ? 'rsi-os' : 'rsi-mid';
-    const comboCls = combo==='Bullish'?'combo-bull':combo==='Bearish'?'combo-bear':'combo-neu';
-    const momCls = tech.momentum && tech.momentum.startsWith('+') ? 'pct-bull' : 'pct-bear';
+    // Doplň chybějící timeframes
+    const tfBias = {};
+    for (const k of TF_KEYS) tfBias[k] = (tech.tfBias && tech.tfBias[k]) || 'Neutral';
+
+    const momentumNum = parseFloat(String(tech.momentum).replace('%','').replace('+','')) || 0;
+
+    return {
+      sym: inst.sym,
+      grp: inst.grp,
+      bias: tech.bias,
+      rsi: tech.rsi || 50,
+      emaTrend: tech.emaTrend || '—',
+      momentum: tech.momentum || '0.00%',
+      momentumNum,
+      tfBias,
+      combo,
+      agree,
+    };
+  });
+
+  renderTechRows();
+  updateTechSortIcons();
+}
+
+function renderTechRows() {
+  const tbody = document.getElementById('tech-tbody');
+  if (!tbody) return;
+  const rows = getSortedTechRows();
+
+  tbody.innerHTML = rows.map(r => {
+    const grp = r.grp;
+    const bc = grp==='crypto'?'cat-crypto':grp==='com'?'cat-com':grp==='cross'?'cat-cross':'cat-fx';
+    const bl = grp==='crypto'?'Crypto':grp==='com'?'Commodity':grp==='cross'?'Cross':'Major';
+    const rsiCls = r.rsi > 70 ? 'rsi-ob' : r.rsi < 30 ? 'rsi-os' : 'rsi-mid';
+    const comboCls = r.combo==='Bullish'?'combo-bull':r.combo==='Bearish'?'combo-bear':r.combo==='Konflikt'?'combo-bear':'combo-neu';
+    const momCls = String(r.momentum).startsWith('+') ? 'pct-bull' : 'pct-bear';
+    const agreeText = r.agree==='yes' ? '✓ Shoda' : r.agree==='partial' ? '~ Částečně' : r.agree==='no' ? '✗ Konflikt' : '—';
+    const agreeCls  = r.agree==='yes' ? 'agree-yes' : r.agree==='no' ? 'agree-no' : 'agree-na';
+
+    const tfCells = TF_KEYS.map(k => {
+      const b = r.tfBias[k];
+      return `<td class="tf-cell"><span class="${tfPillClass(b)}">${tfPillLabel(b)}</span></td>`;
+    }).join('');
 
     return `<tr>
-      <td><span class="sym">${inst.sym}</span><span class="cat-badge ${bc}">${bl}</span></td>
-      <td><span class="bias-badge ${tb}">${tech.bias}</span></td>
-      <td><span class="rsi-val ${rsiCls}">${tech.rsi}</span>${tech.rsi > 70 ? ' <span style="font-size:10px;color:var(--bear)">OB</span>' : tech.rsi < 30 ? ' <span style="font-size:10px;color:var(--bull)">OS</span>' : ''}</td>
-      <td style="font-size:11px;color:var(--muted)">${tech.emaTrend}</td>
-      <td class="${momCls}" style="font-size:12px">${tech.momentum}</td>
-      <td class="${comboCls}" style="font-weight:500">${combo}</td>
+      <td><span class="sym">${r.sym}</span><span class="cat-badge ${bc}">${bl}</span></td>
+      ${tfCells}
+      <td><span class="rsi-val ${rsiCls}">${r.rsi}</span>${r.rsi > 70 ? ' <span style="font-size:10px;color:var(--bear)">OB</span>' : r.rsi < 30 ? ' <span style="font-size:10px;color:var(--bull)">OS</span>' : ''}</td>
+      <td style="font-size:11px;color:var(--muted)">${r.emaTrend}</td>
+      <td class="${momCls}" style="font-size:12px">${r.momentum}</td>
+      <td class="${comboCls}" style="font-weight:500">${r.combo}</td>
       <td class="${agreeCls}">${agreeText}</td>
     </tr>`;
   }).join('');

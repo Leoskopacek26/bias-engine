@@ -1,13 +1,17 @@
 // Netlify Function: technická analýza
-// Stahuje historická ECB data a POČÍTÁ indikátory na serveru
-// Prohlížeč dostane jen hotové výsledky — žádné velké datové přenosy
+// Stahuje multi-timeframe data z Yahoo Finance a počítá indikátory na serveru
+// Vrací bias (Bullish/Neutral/Bearish) pro 5m, 15m, 30m, 1h, 4h, 1D
+// + detailní 1D analýzu (RSI, EMA trend, momentum)
 
 const https = require('https');
 
 function fetchJson(url) {
   return new Promise(resolve => {
     https.get(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; BiasEngine/2.0)' }
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; BiasEngine/3.0)',
+        'Accept': 'application/json',
+      },
     }, res => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         return fetchJson(res.headers.location).then(resolve);
@@ -21,18 +25,17 @@ function fetchJson(url) {
   });
 }
 
-// Spočítá EMA pro pole cen
+// ── Indikátory ───────────────────────────────────────────────────────────────
 function calcEMA(prices, period) {
-  if (prices.length < period) return null;
+  if (!prices || prices.length < period) return null;
   const k = 2 / (period + 1);
   let ema = prices.slice(0, period).reduce((a, b) => a + b, 0) / period;
   for (let i = period; i < prices.length; i++) ema = prices[i] * k + ema * (1 - k);
   return ema;
 }
 
-// Spočítá RSI(14)
 function calcRSI(prices, period = 14) {
-  if (prices.length < period + 1) return null;
+  if (!prices || prices.length < period + 1) return null;
   let gains = 0, losses = 0;
   for (let i = prices.length - period; i < prices.length; i++) {
     const diff = prices[i] - prices[i - 1];
@@ -42,26 +45,9 @@ function calcRSI(prices, period = 14) {
   return Math.round(100 - (100 / (1 + rs)));
 }
 
-// Sestaví cenovou řadu páru z ECB dat (USD base)
-function buildSeries(rates, dates, base, quote) {
-  return dates.map(d => {
-    const r = rates[d];
-    if (!r) return null;
-    // USD/XXX přímo
-    if (base === 'USD') return r[quote] || null;
-    // XXX/USD inverzně
-    if (quote === 'USD') return r[base] ? 1 / r[base] : null;
-    // Cross páry: EUR/GBP = r.GBP / r.EUR (obě jsou XXX per 1 USD)
-    if (r[base] && r[quote]) return r[quote] / r[base];
-    return null;
-  }).filter(p => p !== null && !isNaN(p));
-}
-
-// Spočítá technický bias z cenové řady
-function calcBias(prices) {
-  if (!prices || prices.length < 22) {
-    return { bias: 'Neutral', rsi: 50, emaTrend: 'Nedostatek dat', momentum: '0.00%', conf: 0 };
-  }
+// Skóre bias pro libovolný timeframe (vrací číslo + meziproduktyy)
+function biasScore(prices) {
+  if (!prices || prices.length < 22) return null;
   const ema20 = calcEMA(prices, 20);
   const ema50 = calcEMA(prices, Math.min(50, prices.length - 2));
   const rsi   = calcRSI(prices);
@@ -81,71 +67,126 @@ function calcBias(prices) {
   }
   if (momentum > 0.3)       score += 0.25;
   else if (momentum < -0.3) score -= 0.25;
-
-  const bias = score > 0.20 ? 'Bullish' : score < -0.20 ? 'Bearish' : 'Neutral';
-  const conf = Math.min(5, Math.max(1, Math.round(Math.abs(score) * 6)));
-  const emaTrend = ema20 && ema50
-    ? (ema20 > ema50 ? 'EMA20 > EMA50 ↑' : 'EMA20 < EMA50 ↓')
-    : 'Nedostatek dat';
-  const sign = momentum >= 0 ? '+' : '';
-  return { bias, rsi: rsi || 50, emaTrend, momentum: sign + momentum.toFixed(2) + '%', conf };
+  return { score, ema20, ema50, rsi, momentum, last };
 }
 
-const PAIRS = [
-  { sym:'EURUSD', base:'EUR', quote:'USD' },
-  { sym:'GBPUSD', base:'GBP', quote:'USD' },
-  { sym:'USDJPY', base:'USD', quote:'JPY' },
-  { sym:'USDCHF', base:'USD', quote:'CHF' },
-  { sym:'AUDUSD', base:'AUD', quote:'USD' },
-  { sym:'USDCAD', base:'USD', quote:'CAD' },
-  { sym:'NZDUSD', base:'NZD', quote:'USD' },
-  { sym:'EURGBP', base:'EUR', quote:'GBP' },
-  { sym:'EURJPY', base:'EUR', quote:'JPY' },
-  { sym:'EURCHF', base:'EUR', quote:'CHF' },
-  { sym:'EURAUD', base:'EUR', quote:'AUD' },
-  { sym:'EURCAD', base:'EUR', quote:'CAD' },
-  { sym:'GBPJPY', base:'GBP', quote:'JPY' },
-  { sym:'GBPAUD', base:'GBP', quote:'AUD' },
-  { sym:'AUDJPY', base:'AUD', quote:'JPY' },
-  { sym:'CADJPY', base:'CAD', quote:'JPY' },
-  { sym:'NZDJPY', base:'NZD', quote:'JPY' },
-  { sym:'XAUUSD', base:'XAU', quote:'USD' }, // ECB nemá zlato — záloha
-  { sym:'XAGUSD', base:'XAG', quote:'USD' }, // ECB nemá stříbro — záloha
+function scoreToBias(score) {
+  if (score === null || score === undefined) return 'Neutral';
+  if (score > 0.20) return 'Bullish';
+  if (score < -0.20) return 'Bearish';
+  return 'Neutral';
+}
+
+// Detailní 1D analýza pro hlavní sloupce tabulky (RSI, EMA, Momentum)
+function calcDetailed(prices) {
+  const s = biasScore(prices);
+  if (!s) return { bias: 'Neutral', rsi: 50, emaTrend: 'Nedostatek dat', momentum: '0.00%', conf: 0 };
+  const bias = scoreToBias(s.score);
+  const conf = Math.min(5, Math.max(1, Math.round(Math.abs(s.score) * 6)));
+  const emaTrend = s.ema20 && s.ema50
+    ? (s.ema20 > s.ema50 ? 'EMA20 > EMA50 ↑' : 'EMA20 < EMA50 ↓')
+    : 'Nedostatek dat';
+  const sign = s.momentum >= 0 ? '+' : '';
+  return { bias, rsi: s.rsi || 50, emaTrend, momentum: sign + s.momentum.toFixed(2) + '%', conf };
+}
+
+// ── Yahoo Finance loader ─────────────────────────────────────────────────────
+async function fetchYahoo(symbol, interval, range) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=${interval}&range=${range}`;
+  const data = await fetchJson(url);
+  if (!data || !data.chart || !data.chart.result || !data.chart.result[0]) return null;
+  const result = data.chart.result[0];
+  const closes = result.indicators?.quote?.[0]?.close;
+  if (!closes) return null;
+  return closes.filter(p => p !== null && !isNaN(p));
+}
+
+// Agregace 1h dat na 4h: vezmeme close každé 4. svíčky
+function aggregate(prices, factor) {
+  if (!prices || !prices.length) return [];
+  const out = [];
+  for (let i = factor - 1; i < prices.length; i += factor) out.push(prices[i]);
+  return out;
+}
+
+// ── Konfigurace timeframes ───────────────────────────────────────────────────
+// Yahoo nepodporuje 4h nativně — odvodíme ho z 1h dat
+const TF_CONFIG = [
+  { tf: '5m',  interval: '5m',  range: '5d'  },
+  { tf: '15m', interval: '15m', range: '5d'  },
+  { tf: '30m', interval: '30m', range: '5d'  },
+  { tf: '1h',  interval: '60m', range: '1mo' },
+  { tf: '4h',  interval: '60m', range: '3mo', aggregate: 4 },
+  { tf: '1D',  interval: '1d',  range: '6mo' },
 ];
 
+const PAIRS = [
+  // FX major
+  { sym: 'EURUSD', yahoo: 'EURUSD=X' },
+  { sym: 'GBPUSD', yahoo: 'GBPUSD=X' },
+  { sym: 'USDJPY', yahoo: 'JPY=X'    },
+  { sym: 'USDCHF', yahoo: 'CHF=X'    },
+  { sym: 'AUDUSD', yahoo: 'AUDUSD=X' },
+  { sym: 'USDCAD', yahoo: 'CAD=X'    },
+  { sym: 'NZDUSD', yahoo: 'NZDUSD=X' },
+  // FX cross
+  { sym: 'EURGBP', yahoo: 'EURGBP=X' },
+  { sym: 'EURJPY', yahoo: 'EURJPY=X' },
+  { sym: 'EURCHF', yahoo: 'EURCHF=X' },
+  { sym: 'EURAUD', yahoo: 'EURAUD=X' },
+  { sym: 'EURCAD', yahoo: 'EURCAD=X' },
+  { sym: 'GBPJPY', yahoo: 'GBPJPY=X' },
+  { sym: 'GBPAUD', yahoo: 'GBPAUD=X' },
+  { sym: 'AUDJPY', yahoo: 'AUDJPY=X' },
+  { sym: 'CADJPY', yahoo: 'CADJPY=X' },
+  { sym: 'NZDJPY', yahoo: 'NZDJPY=X' },
+  // Commodities
+  { sym: 'XAUUSD', yahoo: 'GC=F' },
+  { sym: 'XAGUSD', yahoo: 'SI=F' },
+  // Crypto
+  { sym: 'BTCUSD', yahoo: 'BTC-USD' },
+  { sym: 'ETHUSD', yahoo: 'ETH-USD' },
+];
+
+// ── Handler ──────────────────────────────────────────────────────────────────
 exports.handler = async function() {
-  // Správný výpočet datového rozsahu
-  const end = new Date();
-  end.setDate(end.getDate() - 1);
-  while (end.getDay() === 0 || end.getDay() === 6) end.setDate(end.getDate() - 1);
-  const start = new Date(end);
-  start.setDate(start.getDate() - 100);
+  const fetchedAt = new Date().toISOString();
 
-  const endStr   = end.toISOString().slice(0, 10);
-  const startStr = start.toISOString().slice(0, 10);
+  // Pro každý timeframe paralelně načti všechny páry (6 sériových rund × 21 paralelně)
+  const priceCache = {};
+  for (const p of PAIRS) priceCache[p.sym] = {};
 
-  const url = `https://api.frankfurter.app/${startStr}..${endStr}?from=USD&to=EUR,GBP,JPY,CHF,AUD,CAD,NZD`;
-  const data = await fetchJson(url);
-
-  if (!data || !data.rates) {
-    return {
-      statusCode: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ error: 'Nepodařilo se stáhnout historická data z ECB' }),
-    };
+  for (const cfg of TF_CONFIG) {
+    const promises = PAIRS.map(async (p) => {
+      try {
+        let prices = await fetchYahoo(p.yahoo, cfg.interval, cfg.range);
+        if (prices && cfg.aggregate) prices = aggregate(prices, cfg.aggregate);
+        priceCache[p.sym][cfg.tf] = prices || [];
+      } catch (e) {
+        priceCache[p.sym][cfg.tf] = [];
+      }
+    });
+    await Promise.all(promises);
   }
 
-  const dates = Object.keys(data.rates).sort();
+  // Sestav výsledky
   const results = {};
-
-  for (const pair of PAIRS) {
-    if (pair.base === 'XAU' || pair.base === 'XAG') {
-      // Zlato a stříbro — ECB nemá, vrátíme zálohu
-      results[pair.sym] = { bias: 'Neutral', rsi: 50, emaTrend: 'Bez dat (ECB)', momentum: '0.00%', conf: 0 };
-      continue;
+  for (const p of PAIRS) {
+    const tfBias = {};
+    let daily = null;
+    for (const cfg of TF_CONFIG) {
+      const prices = priceCache[p.sym][cfg.tf];
+      const s = biasScore(prices);
+      tfBias[cfg.tf] = s ? scoreToBias(s.score) : 'Neutral';
+      if (cfg.tf === '1D') daily = calcDetailed(prices);
     }
-    const prices = buildSeries(data.rates, dates, pair.base, pair.quote);
-    results[pair.sym] = calcBias(prices);
+    if (!daily) daily = { bias: 'Neutral', rsi: 50, emaTrend: 'Nedostatek dat', momentum: '0.00%', conf: 0 };
+
+    // Sloučíme detailní 1D analýzu s bias semaforem pro všechny timeframes
+    results[p.sym] = {
+      ...daily,
+      tfBias,
+    };
   }
 
   return {
@@ -153,8 +194,13 @@ exports.handler = async function() {
     headers: {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*',
-      'Cache-Control': 'public, max-age=3600',
+      'Cache-Control': 'public, max-age=300',
     },
-    body: JSON.stringify({ results, days: dates.length, start: startStr, end: endStr }),
+    body: JSON.stringify({
+      results,
+      timeframes: TF_CONFIG.map(c => c.tf),
+      source: 'Yahoo Finance',
+      fetched_at: fetchedAt,
+    }),
   };
 };
