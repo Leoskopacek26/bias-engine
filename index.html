@@ -420,6 +420,28 @@
   }
   .bias-table th.sortable .sort-icon { margin-left:3px; opacity:.5; font-size:9px; }
 
+  /* FAIR VALUE — status pills */
+  .fv-status { display:inline-block; min-width:96px; padding:3px 8px; border-radius:3px; font-size:10px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; border:1px solid; text-align:center; }
+  .fv-status-under { background:var(--bull-dim); color:var(--bull); border-color:var(--bull-mid); }
+  .fv-status-over  { background:var(--bear-dim); color:var(--bear); border-color:var(--bear-mid); }
+  .fv-status-fair  { background:var(--surface2); color:var(--muted); border-color:var(--border2); }
+  .fv-status-na    { background:var(--surface2); color:var(--dim); border-color:var(--border); }
+  .fv-type-pill { display:inline-block; padding:1px 7px; border-radius:3px; font-size:9px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; border:1px solid var(--border2); color:var(--muted); }
+  .fv-type-stock  { background:var(--surface2); }
+  .fv-type-etf    { background:#3a2f1f; color:#f7c843; border-color:#7a5e1f; }
+  .fv-type-crypto { background:#3a2419; color:#f7931a; border-color:#7a4a1f; }
+  .fv-diff-pos { color:var(--bull); font-weight:600; }
+  .fv-diff-neg { color:var(--bear); font-weight:600; }
+  .fv-diff-neu { color:var(--muted); }
+  .fv-detail-card { background:var(--surface2); border:1px solid var(--border2); border-radius:6px; padding:14px 16px; margin-top:6px; }
+  .fv-detail-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:10px 16px; font-size:12px; margin-top:10px; }
+  .fv-detail-grid > div { display:flex; justify-content:space-between; gap:8px; padding:4px 0; border-bottom:1px solid var(--border); }
+  .fv-detail-grid > div span:first-child { color:var(--muted); }
+  .fv-detail-grid > div span:last-child  { color:var(--text); font-weight:500; }
+  .fv-breakdown { font-size:11px; color:var(--muted); margin-top:8px; line-height:1.6; }
+  .fv-detail-btn { background:none; border:1px solid var(--border2); color:var(--muted); cursor:pointer; padding:2px 8px; border-radius:3px; font-size:10px; }
+  .fv-detail-btn:hover { background:var(--surface2); color:var(--text); }
+
   @media (max-width: 640px) {
     .main { padding: 16px; }
     .header { padding: 14px 16px; }
@@ -467,6 +489,7 @@
     <button class="tab-btn" onclick="switchTab('backtest',this)">Back-test</button>
     <button class="tab-btn" onclick="switchTab('macro',this)">Macro data</button>
     <button class="tab-btn" onclick="switchTab('technical',this)">Technická analýza</button>
+    <button class="tab-btn" onclick="switchTab('fairvalue',this)">Fair Value</button>
     <button class="tab-btn" onclick="switchTab('tradefilter',this)">Trade Filter</button>
   </div>
 
@@ -633,6 +656,63 @@
     </div>
     <button class="btn btn-primary" style="margin-top:14px" onclick="runTechnical()" id="tech-run-btn">Vypočítat technickou analýzu</button>
     <span style="font-size:11px;color:var(--muted);margin-left:12px">Stahuje multi-timeframe data z Binance + TwelveData/ECB (~10–20 sec)</span>
+  </div>
+
+  <!-- FAIR VALUE TAB -->
+  <div class="tab-panel" id="tab-fairvalue">
+    <div class="tech-info-bar">
+      <strong>Fair Value Calculator</strong> — kombinace DCF (40 %), sektorové P/E (30 %), PEG (20 %) a P/B (10 %) pro akcie. Pro ETF: P/E vs market, dividend yield, expense ratio penalty. Pro krypto: <em>Mayer Multiple</em> (price / 200-DMA).
+      Stav: <strong style="color:var(--bull)">UNDERVALUED</strong> = diff &gt; +15 %, <strong style="color:var(--bear)">OVERVALUED</strong> = diff &lt; -15 %, jinak <strong>FAIR</strong>.
+      Data z Financial Modeling Prep (free 250 req/den).
+      <span id="fv-status" style="margin-left:8px;color:var(--bull)"></span>
+    </div>
+
+    <div class="api-section" style="margin-bottom:14px">
+      <span class="api-label">FMP API Key <span style="color:var(--dim)">(volitelné — bez něj jen krypto)</span></span>
+      <input class="api-input" type="password" id="fmp-key-input" placeholder="vlož svůj FMP API klíč..." autocomplete="off">
+      <button class="btn btn-primary" id="fmp-connect-btn" onclick="connectFmp()">Uložit</button>
+      <span class="api-note">Zdarma na <a href="https://site.financialmodelingprep.com/developer/docs" target="_blank">financialmodelingprep.com</a> · 250 req/den</span>
+    </div>
+
+    <!-- Single ticker form -->
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:14px 16px; margin-bottom:18px">
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+        <span style="font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-right:4px">Spočítat fair value</span>
+        <input class="api-input" id="fv-ticker-input" placeholder="AAPL, SPY, BTCUSD ..." style="flex:0 0 200px; text-transform:uppercase" autocomplete="off"
+               onkeydown="if(event.key==='Enter')runFairValueOne()">
+        <button class="btn btn-primary" onclick="runFairValueOne()" id="fv-one-btn">Spočítat</button>
+        <span id="fv-one-msg" style="font-size:11px; color:var(--muted)"></span>
+      </div>
+      <div id="fv-one-result" style="margin-top:14px; display:none"></div>
+    </div>
+
+    <!-- Watchlist controls -->
+    <div style="display:flex; align-items:center; gap:14px; margin-bottom:10px; flex-wrap:wrap">
+      <div style="font-size:13px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--text)">Watchlist — Fair Value Dashboard</div>
+      <button class="btn btn-primary" onclick="runWatchlist()" id="fv-wl-btn" style="padding:6px 14px; font-size:11px">↻ Refresh</button>
+      <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); cursor:pointer">
+        <input type="checkbox" id="fv-only-under" onchange="renderWatchlist()" style="cursor:pointer">
+        Jen UNDERVALUED
+      </label>
+      <span id="fv-wl-status" style="font-size:11px; color:var(--muted); margin-left:auto"></span>
+    </div>
+
+    <div class="table-wrap">
+      <table class="bias-table" id="fv-table">
+        <thead><tr id="fv-sort-header">
+          <th class="sortable" data-fcol="ticker" onclick="fvSortBy('ticker')">Ticker <span class="sort-icon" id="fvi-ticker"></span></th>
+          <th class="sortable" data-fcol="type" onclick="fvSortBy('type')">Typ <span class="sort-icon" id="fvi-type"></span></th>
+          <th class="sortable" data-fcol="price" onclick="fvSortBy('price')">Cena <span class="sort-icon" id="fvi-price"></span></th>
+          <th class="sortable" data-fcol="fair" onclick="fvSortBy('fair')">Fair value <span class="sort-icon" id="fvi-fair"></span></th>
+          <th class="sortable" data-fcol="diff" onclick="fvSortBy('diff')">Rozdíl % <span class="sort-icon" id="fvi-diff"></span></th>
+          <th class="sortable" data-fcol="status" onclick="fvSortBy('status')">Stav <span class="sort-icon" id="fvi-status"></span></th>
+          <th>Detail</th>
+        </tr></thead>
+        <tbody id="fv-tbody">
+          <tr><td colspan="7" style="text-align:center; color:var(--muted); padding:32px">Klikni "↻ Refresh" pro spuštění watchlistu (~30–60 sekund pro 70+ tickerů).</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <!-- TRADE FILTER TAB -->
@@ -1628,10 +1708,12 @@ async function runTechnical() {
     if (!hasNewBackend) {
       status.innerHTML = '<span style="color:var(--bear)">⚠ Backend je STARÝ techdata.js — push nový do GitHubu</span>';
     } else {
-      const fxSrc = (data.sources && data.sources.fx_metals) || (data.twelveKeyUsed ? 'TwelveData' : 'ECB synthetic');
-      const cryptoSrc = (data.sources && data.sources.crypto) || 'Binance';
+      const s = data.sources || {};
+      const fxSrc     = s.fx     || s.fx_metals || (data.twelveKeyUsed ? 'TwelveData' : 'ECB synthetic');
+      const metalsSrc = s.metals || s.fx_metals || 'Stooq';
+      const cryptoSrc = s.crypto || 'Bybit→Kraken';
       const stats = data.stats ? `B${data.stats.Bullish}/N${data.stats.Neutral}/b${data.stats.Bearish}` : '';
-      status.innerHTML = `<span style="color:var(--bull)">✓ ${cryptoSrc} + ${fxSrc}</span>` +
+      status.innerHTML = `<span style="color:var(--bull)">✓ FX:${fxSrc} · Metals:${metalsSrc} · Crypto:${cryptoSrc}</span>` +
                         (stats ? ` · <span style="color:var(--muted)">${stats}</span>` : '') +
                         (fetched ? ` · <span style="color:var(--muted)">${fetched}</span>` : '');
     }
@@ -1973,6 +2055,245 @@ function toast(msg, type = 'info') {
   wrap.appendChild(el);
   setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(), 300); }, 3000);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FAIR VALUE — modul
+// ─────────────────────────────────────────────────────────────────────────────
+
+let fmpKey = localStorage.getItem('fmp_api_key') || '';
+
+const FV_WATCHLIST = [
+  'CNSW','CNC','ADSK','BX','S','MU','VRSN','ASML','SMCI','HIMS','PYPL','INTC',
+  'PLTR','MSFT','JD','ADBE','UBER','ZM','MELI','CRM','GOOG','TME','NFLX','V',
+  'NVDA','PDD','AAPL','OXY','NXT','AMZN','TSLA','TAN','META','BAC','BIDU',
+  'TTD','PGEN','TLN','FICO','LULU','WIX','HTHT','ANF','PEP','SHW','RACE',
+  'SBUX','ABNB','PHM','IPCO','PINS','ALGN','TOL','TSSI','AMR','CSU','BKNG',
+  'BA','DELL','BRK.B','DUOL','NOW','GME','BABA','IBKR','AMD','DIS','NKE',
+  'ON','ROKU','SIRI','TDOC','UAA','BYDDY','DSY','BTCUSD','ETHUSD'
+];
+
+let fvWatchlistData = {};   // ticker → result obj
+let fvSortCol = 'diff';
+let fvSortDir = -1;          // -1 = desc (most undervalued first)
+
+function connectFmp() {
+  const input = document.getElementById('fmp-key-input');
+  const key = input ? input.value.trim() : '';
+  if (!key) {
+    fmpKey = '';
+    localStorage.removeItem('fmp_api_key');
+    toast('FMP klíč odstraněn', 'info');
+    return;
+  }
+  fmpKey = key;
+  localStorage.setItem('fmp_api_key', key);
+  toast('FMP klíč uložen', 'success');
+}
+
+// Single ticker calculator
+async function runFairValueOne() {
+  const input = document.getElementById('fv-ticker-input');
+  const t = (input.value || '').trim().toUpperCase();
+  if (!t) { toast('Zadej ticker (např. AAPL)', 'error'); return; }
+  const btn = document.getElementById('fv-one-btn');
+  const msg = document.getElementById('fv-one-msg');
+  const out = document.getElementById('fv-one-result');
+  btn.disabled = true;
+  btn.textContent = 'Počítám...';
+  msg.textContent = '';
+  out.style.display = 'none';
+  try {
+    const liveKey = (document.getElementById('fmp-key-input').value || '').trim() || fmpKey;
+    if (liveKey && liveKey !== fmpKey) { fmpKey = liveKey; localStorage.setItem('fmp_api_key', liveKey); }
+    const url = '/.netlify/functions/fairvalue?_=' + Date.now() + '&tickers=' + encodeURIComponent(t)
+              + (liveKey ? '&fmpKey=' + encodeURIComponent(liveKey) : '');
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    const r = data.results[t] || data.results[Object.keys(data.results)[0]];
+    if (!r) throw new Error('Žádný výsledek');
+    out.innerHTML = renderFvCard(t, r);
+    out.style.display = 'block';
+    msg.textContent = data.ms ? `${data.ms} ms` : '';
+    if (data.debug) data.debug.forEach(line => console.log(line));
+  } catch (e) {
+    msg.innerHTML = '<span style="color:var(--bear)">Chyba: ' + e.message + '</span>';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Spočítat';
+}
+
+function renderFvCard(ticker, r) {
+  if (r.error) {
+    return `<div class="fv-detail-card"><strong>${ticker}</strong> — <span style="color:var(--bear)">${r.error}</span></div>`;
+  }
+  const statusClass = r.status === 'UNDERVALUED' ? 'fv-status-under'
+                    : r.status === 'OVERVALUED' ? 'fv-status-over' : 'fv-status-fair';
+  const diffClass = r.diffPct > 5 ? 'fv-diff-pos' : r.diffPct < -5 ? 'fv-diff-neg' : 'fv-diff-neu';
+  const sign = r.diffPct > 0 ? '+' : '';
+  const breakdown = Array.isArray(r.breakdown)
+    ? r.breakdown.map(b => `${b.method}: <strong>${b.value}</strong> (váha ${(b.weight*100).toFixed(0)}%)`).join(' · ')
+    : (r.breakdown ? Object.entries(r.breakdown).map(([k,v]) => `${k}: <strong>${v}</strong>`).join(' · ') : '');
+  const dataRows = r.data ? Object.entries(r.data).filter(([_, v]) => v != null && v !== '').map(([k,v]) => {
+    const val = typeof v === 'number' ? v.toFixed(2) : v;
+    return `<div><span>${fmtFvKey(k)}</span><span>${val}</span></div>`;
+  }).join('') : '';
+  return `
+    <div class="fv-detail-card">
+      <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap">
+        <strong style="font-size:18px; letter-spacing:.04em">${ticker}</strong>
+        <span class="fv-type-pill fv-type-${r.type}">${r.type.toUpperCase()}</span>
+        <span style="color:var(--muted); font-size:12px">Cena: <strong style="color:var(--text)">$${r.price?.toFixed(2)}</strong></span>
+        <span style="color:var(--muted); font-size:12px">Fair: <strong style="color:var(--text)">$${r.fairValue?.toFixed(2)}</strong></span>
+        <span class="${diffClass}" style="font-size:14px">${sign}${r.diffPct?.toFixed(1)}%</span>
+        <span class="fv-status ${statusClass}">${r.status}</span>
+      </div>
+      ${r.reason ? `<div style="font-size:12px; color:var(--muted); margin-top:8px">${r.reason}</div>` : ''}
+      ${breakdown ? `<div class="fv-breakdown"><strong>Rozklad:</strong> ${breakdown}</div>` : ''}
+      ${dataRows ? `<div class="fv-detail-grid">${dataRows}</div>` : ''}
+    </div>`;
+}
+
+function fmtFvKey(k) {
+  const map = {
+    sector:'Sektor', peTtm:'P/E (TTM)', pegTtm:'PEG', pbTtm:'P/B', psTtm:'P/S',
+    debt2eq:'Debt/Equity', fcfPS:'FCF/share', revGrowth:'Růst tržeb',
+    epsGrowth:'Růst EPS', dcfVal:'DCF (FMP)', eps:'EPS', peEtf:'P/E ETF',
+    yieldPct:'Dividend yield', expense:'Expense ratio', aum:'AUM',
+    fairScore:'Fair score',
+  };
+  return map[k] || k;
+}
+
+// Watchlist
+async function runWatchlist() {
+  const btn = document.getElementById('fv-wl-btn');
+  const status = document.getElementById('fv-wl-status');
+  const tbody = document.getElementById('fv-tbody');
+  btn.disabled = true;
+  btn.textContent = '...';
+  status.textContent = `Načítám ${FV_WATCHLIST.length} tickerů z FMP (chunky po 6)...`;
+  tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:32px">⏳ Načítám fair value pro ${FV_WATCHLIST.length} tickerů…</td></tr>`;
+  try {
+    const liveKey = (document.getElementById('fmp-key-input').value || '').trim() || fmpKey;
+    const url = '/.netlify/functions/fairvalue?_=' + Date.now()
+              + '&tickers=' + encodeURIComponent(FV_WATCHLIST.join(','))
+              + (liveKey ? '&fmpKey=' + encodeURIComponent(liveKey) : '');
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    fvWatchlistData = data.results || {};
+    const s = data.stats || { undervalued:0, fair:0, overvalued:0, errors:0 };
+    status.innerHTML = `<span style="color:var(--bull)">U:${s.undervalued}</span> · ` +
+                       `<span style="color:var(--muted)">F:${s.fair}</span> · ` +
+                       `<span style="color:var(--bear)">O:${s.overvalued}</span> · ` +
+                       `<span style="color:var(--dim)">ERR:${s.errors}</span> · ${data.ms||0}ms`;
+    if (data.debug && Array.isArray(data.debug)) {
+      console.log(`[fairvalue debug — ${data.debug.length} lines]`);
+      data.debug.forEach(line => console.log(line));
+    }
+    renderWatchlist();
+  } catch (e) {
+    status.innerHTML = '<span style="color:var(--bear)">Chyba: ' + e.message + '</span>';
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--bear); padding:32px">${e.message}</td></tr>`;
+  }
+  btn.disabled = false;
+  btn.textContent = '↻ Refresh';
+}
+
+function fvSortBy(col) {
+  if (fvSortCol === col) { fvSortDir *= -1; }
+  else { fvSortCol = col; fvSortDir = (col === 'ticker' || col === 'type' || col === 'status') ? 1 : -1; }
+  renderWatchlist();
+  ['ticker','type','price','fair','diff','status'].forEach(c => {
+    const el = document.getElementById('fvi-' + c);
+    if (!el) return;
+    el.className = 'sort-icon ' + (c === fvSortCol ? (fvSortDir === 1 ? 'asc' : 'desc') : 'none');
+  });
+}
+
+function statusOrderVal(s) {
+  if (s === 'UNDERVALUED') return 3;
+  if (s === 'FAIR') return 2;
+  if (s === 'OVERVALUED') return 1;
+  return 0;
+}
+
+function renderWatchlist() {
+  const tbody = document.getElementById('fv-tbody');
+  if (!tbody) return;
+  const onlyUnder = document.getElementById('fv-only-under').checked;
+  let rows = Object.entries(fvWatchlistData).map(([ticker, r]) => ({ ticker, r }));
+  if (onlyUnder) rows = rows.filter(({r}) => r.status === 'UNDERVALUED');
+  rows.sort((a, b) => {
+    const ar = a.r, br = b.r;
+    let va, vb;
+    if      (fvSortCol === 'ticker') { va = a.ticker; vb = b.ticker; }
+    else if (fvSortCol === 'type')   { va = ar.type || 'z';  vb = br.type || 'z'; }
+    else if (fvSortCol === 'price')  { va = ar.price || 0;   vb = br.price || 0; }
+    else if (fvSortCol === 'fair')   { va = ar.fairValue || 0; vb = br.fairValue || 0; }
+    else if (fvSortCol === 'diff')   { va = ar.diffPct ?? -999; vb = br.diffPct ?? -999; }
+    else if (fvSortCol === 'status') { va = statusOrderVal(ar.status); vb = statusOrderVal(br.status); }
+    else                              { va = a.ticker; vb = b.ticker; }
+    if (va < vb) return -fvSortDir;
+    if (va > vb) return  fvSortDir;
+    return 0;
+  });
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--muted); padding:24px">Žádné výsledky.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(({ticker, r}) => {
+    if (r.error) {
+      return `<tr>
+        <td><strong>${ticker}</strong></td>
+        <td colspan="5" style="color:var(--bear); font-size:11px">${r.error}</td>
+        <td>—</td>
+      </tr>`;
+    }
+    const sCls = r.status === 'UNDERVALUED' ? 'fv-status-under'
+               : r.status === 'OVERVALUED' ? 'fv-status-over' : 'fv-status-fair';
+    const dCls = r.diffPct > 5 ? 'fv-diff-pos' : r.diffPct < -5 ? 'fv-diff-neg' : 'fv-diff-neu';
+    const sign = r.diffPct > 0 ? '+' : '';
+    const typeCls = `fv-type-${r.type || 'stock'}`;
+    return `<tr>
+      <td><strong>${ticker}</strong></td>
+      <td><span class="fv-type-pill ${typeCls}">${(r.type||'').toUpperCase()||'—'}</span></td>
+      <td>$${r.price ? r.price.toFixed(2) : '—'}</td>
+      <td>$${r.fairValue ? r.fairValue.toFixed(2) : '—'}</td>
+      <td class="${dCls}">${r.diffPct != null ? sign + r.diffPct.toFixed(1) + '%' : '—'}</td>
+      <td><span class="fv-status ${sCls}">${r.status || 'N/A'}</span></td>
+      <td><button class="fv-detail-btn" onclick="fvShowDetail('${ticker}')">Detail</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function fvShowDetail(ticker) {
+  const r = fvWatchlistData[ticker];
+  if (!r) return;
+  const modalId = 'fv-modal-' + ticker;
+  let modal = document.getElementById(modalId);
+  if (modal) { modal.remove(); return; }  // toggle
+  modal = document.createElement('div');
+  modal.id = modalId;
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.onclick = e => { if (e.target === modal) modal.remove(); };
+  modal.innerHTML = `<div style="max-width:720px; width:100%; max-height:90vh; overflow:auto; background:var(--surface); border:1px solid var(--border2); border-radius:8px; padding:6px">
+    <div style="text-align:right;padding:4px 8px"><button onclick="document.getElementById('${modalId}').remove()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer">×</button></div>
+    ${renderFvCard(ticker, r)}
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+// Pre-fill FMP key on load
+window.addEventListener('load', () => {
+  if (fmpKey) {
+    const el = document.getElementById('fmp-key-input');
+    if (el) el.value = fmpKey;
+  }
+});
 </script>
 </body>
 </html>
