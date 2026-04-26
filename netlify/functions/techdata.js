@@ -1,10 +1,11 @@
-// Netlify Function: technická analýza v4 — multi-source intraday
+// Netlify Function: technická analýza v5 — multi-source intraday s fallback chainem
 // ─────────────────────────────────────────────────────────────────────────────
-// ZDROJE DAT:
-//   • Binance public API     → BTCUSD, ETHUSD (všechny TF, bez klíče, neomezené)
-//   • TwelveData             → FX páry, XAU/USD, XAG/USD (s API klíčem, free tier)
-//   • Frankfurter ECB        → fallback pro FX/metals když TwelveData klíč chybí
-//                              (synthetic intraday: stejná denní data, různá EMA okna)
+// ZDROJE DAT (s fallback chainy):
+//   CRYPTO  (BTC, ETH):  Bybit → Kraken → TwelveData → Stooq daily
+//                        (Binance NEPOUŽÍVÁME — blokuje US AWS IP, Netlify běží na AWS)
+//   METALS  (XAU, XAG):  TwelveData → Stooq daily synthetic
+//                        (TwelveData free tier často commodity nemá)
+//   FX  (všechny páry):  TwelveData → Frankfurter ECB synthetic
 //
 // INDIKÁTORY:
 //   • EMA20, EMA50           → trend a stack alignment
@@ -188,16 +189,41 @@ function evaluateBias(closes, sym, tf, debug) {
   return { bias, reason: reasons.join('; '), score, ema20, ema50, rsi, macd, trend, candles: n };
 }
 
-// ── BINANCE (krypto) ─────────────────────────────────────────────────────────
-const BINANCE_INTERVALS = { '5m':'5m', '15m':'15m', '30m':'30m', '1h':'1h', '4h':'4h', '1D':'1d' };
+// ── BYBIT (krypto, primární — US-friendly, narozdíl od Binance) ──────────────
+// Binance vrací 451 z AWS US IP adres (Netlify běží na AWS). Bybit funguje.
+const BYBIT_INTERVALS = { '5m':'5', '15m':'15', '30m':'30', '1h':'60', '4h':'240', '1D':'D' };
 
-async function fetchBinance(symbol, tf) {
-  const interval = BINANCE_INTERVALS[tf];
-  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=200`;
+async function fetchBybit(symbol, tf) {
+  const interval = BYBIT_INTERVALS[tf];
+  const url = `https://api.bybit.com/v5/market/kline?category=spot&symbol=${symbol}&interval=${interval}&limit=200`;
   const data = await fetchJson(url);
-  if (!Array.isArray(data)) return [];
-  // [openTime, open, high, low, close, volume, ...]
-  return data.map(k => parseFloat(k[4])).filter(v => !isNaN(v) && v > 0);
+  if (!data || data.retCode !== 0 || !data.result || !Array.isArray(data.result.list)) return [];
+  // Bybit vrací DESC (nejnovější první) — musíme reverse pro chronologii
+  // List items: [startTime, open, high, low, close, volume, turnover]
+  return data.result.list
+    .map(k => parseFloat(k[4]))
+    .filter(v => !isNaN(v) && v > 0)
+    .reverse();
+}
+
+// ── KRAKEN (krypto fallback) ─────────────────────────────────────────────────
+const KRAKEN_INTERVALS = { '5m':5, '15m':15, '30m':30, '1h':60, '4h':240, '1D':1440 };
+
+async function fetchKraken(symbol, tf) {
+  const interval = KRAKEN_INTERVALS[tf];
+  // Kraken pair: XBTUSD pro BTC, ETHUSD pro ETH
+  const url = `https://api.kraken.com/0/public/OHLC?pair=${symbol}&interval=${interval}`;
+  const data = await fetchJson(url);
+  if (!data || !data.result) return [];
+  // Klíč v result je jiný než pair v requestu (XBTUSD → XXBTZUSD apod.)
+  const key = Object.keys(data.result).find(k => k !== 'last');
+  if (!key || !Array.isArray(data.result[key])) return [];
+  // Kraken items: [time, open, high, low, close, vwap, volume, count] — ASC
+  // Ber posledních 200 svíček
+  return data.result[key]
+    .slice(-200)
+    .map(k => parseFloat(k[4]))
+    .filter(v => !isNaN(v) && v > 0);
 }
 
 // ── TWELVEDATA (FX + metals) ─────────────────────────────────────────────────
@@ -250,6 +276,24 @@ async function fetchFrankSynth(inst, tf) {
   return series.slice(-Math.min(w, series.length));
 }
 
+// ── STOOQ (denní CSV pro metals — synthetic intraday) ────────────────────────
+// XAUUSD, XAGUSD, ale i BTCUSD/ETHUSD jako poslední pojistka
+async function fetchStooq(symbol, tf) {
+  const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(symbol.toLowerCase())}&i=d`;
+  try {
+    const r = await httpsGet(url);
+    if (r.statusCode !== 200 || !r.body) return [];
+    const lines = r.body.split('\n').filter(l => l && !l.startsWith('Date'));
+    if (lines.length < 28) return [];
+    const closes = lines.map(l => {
+      const cols = l.split(',');
+      return parseFloat(cols[4]);  // Date,Open,High,Low,Close,Volume
+    }).filter(v => !isNaN(v) && v > 0);
+    const w = SYNTH_WINDOWS[tf] || closes.length;
+    return closes.slice(-Math.min(w, closes.length));
+  } catch (e) { return []; }
+}
+
 // ── Inventory ────────────────────────────────────────────────────────────────
 const INSTRUMENTS = [
   // FX major
@@ -271,21 +315,73 @@ const INSTRUMENTS = [
   { sym:'AUDJPY', source:'twelve', td:'AUD/JPY', frank:{base:'AUD', quote:'JPY'} },
   { sym:'CADJPY', source:'twelve', td:'CAD/JPY', frank:{base:'CAD', quote:'JPY'} },
   { sym:'NZDJPY', source:'twelve', td:'NZD/JPY', frank:{base:'NZD', quote:'JPY'} },
-  // Commodities (TwelveData je má jako forex symboly)
-  { sym:'XAUUSD', source:'twelve', td:'XAU/USD' },
-  { sym:'XAGUSD', source:'twelve', td:'XAG/USD' },
-  // Crypto
-  { sym:'BTCUSD', source:'binance', binance:'BTCUSDT' },
-  { sym:'ETHUSD', source:'binance', binance:'ETHUSDT' },
+  // Commodities — TwelveData (placený tier obvykle), fallback Stooq daily
+  { sym:'XAUUSD', source:'metal', td:'XAU/USD', stooq:'xauusd' },
+  { sym:'XAGUSD', source:'metal', td:'XAG/USD', stooq:'xagusd' },
+  // Crypto — Bybit primární (US-friendly), Kraken fallback, TwelveData jako pojistka
+  { sym:'BTCUSD', source:'crypto', bybit:'BTCUSDT', kraken:'XBTUSD', td:'BTC/USD', stooq:'btcusd' },
+  { sym:'ETHUSD', source:'crypto', bybit:'ETHUSDT', kraken:'ETHUSD', td:'ETH/USD', stooq:'ethusd' },
 ];
 
 // ── Routing per instrument ───────────────────────────────────────────────────
 async function fetchCandles(inst, tf, twelveKey, debug) {
-  if (inst.source === 'binance') {
-    const c = await fetchBinance(inst.binance, tf);
-    debug.push(`  → ${inst.sym} ${tf}: Binance ${inst.binance} → ${c.length} svíček`);
-    return { closes: c, source: 'Binance' };
+  // ── CRYPTO: Bybit → Kraken → TwelveData → Stooq ────────────────────────────
+  if (inst.source === 'crypto') {
+    if (inst.bybit) {
+      const c = await fetchBybit(inst.bybit, tf);
+      if (c.length >= 28) {
+        debug.push(`  → ${inst.sym} ${tf}: Bybit ${inst.bybit} → ${c.length} svíček`);
+        return { closes: c, source: 'Bybit' };
+      }
+      debug.push(`  → ${inst.sym} ${tf}: Bybit vrátil ${c.length}, zkouším Kraken`);
+    }
+    if (inst.kraken) {
+      const c = await fetchKraken(inst.kraken, tf);
+      if (c.length >= 28) {
+        debug.push(`  → ${inst.sym} ${tf}: Kraken ${inst.kraken} → ${c.length} svíček`);
+        return { closes: c, source: 'Kraken' };
+      }
+      debug.push(`  → ${inst.sym} ${tf}: Kraken vrátil ${c.length}, zkouším TwelveData`);
+    }
+    if (twelveKey && inst.td) {
+      const c = await fetchTwelve(inst.td, tf, twelveKey);
+      if (c.length >= 28) {
+        debug.push(`  → ${inst.sym} ${tf}: TwelveData ${inst.td} → ${c.length} svíček`);
+        return { closes: c, source: 'TwelveData' };
+      }
+      debug.push(`  → ${inst.sym} ${tf}: TwelveData vrátilo ${c.length}, fallback na Stooq`);
+    }
+    if (inst.stooq) {
+      const c = await fetchStooq(inst.stooq, tf);
+      if (c.length >= 28) {
+        debug.push(`  → ${inst.sym} ${tf}: Stooq ${inst.stooq} (synthetic) → ${c.length} svíček`);
+        return { closes: c, source: 'Stooq (synthetic)' };
+      }
+    }
+    debug.push(`  → ${inst.sym} ${tf}: VŠECHNY zdroje selhaly`);
+    return { closes: [], source: 'none' };
   }
+  // ── METALS: TwelveData → Stooq daily synthetic ─────────────────────────────
+  if (inst.source === 'metal') {
+    if (twelveKey && inst.td) {
+      const c = await fetchTwelve(inst.td, tf, twelveKey);
+      if (c.length >= 28) {
+        debug.push(`  → ${inst.sym} ${tf}: TwelveData ${inst.td} → ${c.length} svíček`);
+        return { closes: c, source: 'TwelveData' };
+      }
+      debug.push(`  → ${inst.sym} ${tf}: TwelveData vrátilo ${c.length} (free tier často nemá metals), fallback na Stooq`);
+    }
+    if (inst.stooq) {
+      const c = await fetchStooq(inst.stooq, tf);
+      if (c.length >= 28) {
+        debug.push(`  → ${inst.sym} ${tf}: Stooq ${inst.stooq} (synthetic) → ${c.length} svíček`);
+        return { closes: c, source: 'Stooq (synthetic)' };
+      }
+    }
+    debug.push(`  → ${inst.sym} ${tf}: žádný zdroj nedostupný`);
+    return { closes: [], source: 'none' };
+  }
+  // ── FX: TwelveData → Frankfurter ECB synthetic ─────────────────────────────
   if (twelveKey && inst.td) {
     const c = await fetchTwelve(inst.td, tf, twelveKey);
     if (c && c.length >= 28) {
@@ -397,8 +493,9 @@ exports.handler = async function(event) {
       results,
       timeframes: TF_LIST,
       sources: {
-        crypto: 'Binance public API',
-        fx_metals: twelveKey ? 'TwelveData (real intraday)' : 'Frankfurter ECB (synthetic intraday)',
+        crypto: 'Bybit→Kraken (US-friendly)',
+        metals: twelveKey ? 'TwelveData→Stooq fallback' : 'Stooq daily (synthetic)',
+        fx:     twelveKey ? 'TwelveData (real intraday)' : 'Frankfurter ECB (synthetic intraday)',
       },
       sourceUsed,
       twelveKeyUsed: !!twelveKey,
