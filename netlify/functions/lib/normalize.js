@@ -1,14 +1,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Normalizace: raw Finnhub + Yahoo → NormalizedFundamentals
+// Normalizace: SEC EDGAR (primary) + Yahoo (price) + Finnhub (optional) →
+//              NormalizedFundamentals
 // ─────────────────────────────────────────────────────────────────────────────
 // Principy:
 //  - null pro chybějící, ne 0
 //  - procenta vždy v percentech (12 = 12%, ne 0.12)
 //  - validace price > 0
-//  - žádné null v aritmetice (helper safeNum)
+//  - prioritní mergování: SEC > Finnhub > Yahoo (pro každé pole zvlášť)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Crypto detekce z tickeru
 const CRYPTO_TICKERS = new Set([
   'BTCUSD', 'ETHUSD', 'BTC-USD', 'ETH-USD', 'BTCUSDT', 'ETHUSDT',
   'XBTUSD', 'XETHUSD',
@@ -17,12 +17,10 @@ const CRYPTO_TICKERS = new Set([
 function isCryptoTicker(symbol) {
   const s = (symbol || '').toUpperCase();
   if (CRYPTO_TICKERS.has(s)) return true;
-  // .USD nebo -USD suffix s krátkou base
   if (/^(BTC|ETH|XRP|SOL|ADA|DOGE|DOT|MATIC|AVAX|LINK)[\-]?USD[T]?$/.test(s)) return true;
   return false;
 }
 
-// Bezpečné číslo: vrací null pro NaN, undefined, Infinity, ne-číslo
 function safeNum(v) {
   if (v === null || v === undefined) return null;
   const n = Number(v);
@@ -30,15 +28,17 @@ function safeNum(v) {
   return n;
 }
 
-// Procento: některé endpointy vrací 0.12 (= 12 %), jiné 12 (= 12 %).
-// Pravidlo: pokud abs(x) < 1, předpokládáme decimálni → ×100.
-// Pokud abs(x) >= 1, považujeme za procenta.
-// (Růst > 100 % nebo < -100 % je vzácný a stejně bude zaokrouhlený.)
 function toPercent(v) {
   const n = safeNum(v);
   if (n === null) return null;
   if (Math.abs(n) < 1) return n * 100;
   return n;
+}
+
+// First non-null helper
+function pick(...vals) {
+  for (const v of vals) if (v !== null && v !== undefined) return v;
+  return null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -47,83 +47,128 @@ function toPercent(v) {
 //
 // Vstupy:
 //   symbol     : "AAPL"
-//   yahooData  : výstup yahoo.fetchPrice() → data
-//   fhMetrics  : výstup finnhub.fetchMetrics() → data.metric
-//   fhProfile  : výstup finnhub.fetchProfile() → data
-//   fhQuote    : výstup finnhub.fetchQuote() → data (záloha pro cenu)
+//   priceData  : výstup price.fetchPrice() → data
+//                { price, currency, type, source, fiftyTwoWeekHigh, ... }
+//   secData    : výstup sec-edgar.fetchFundamentals() → data
+//                { revenue, epsTtm, fcf, fcfPerShare, debtToEquity, margins, ... }
+//   fhMetrics  : OPTIONAL — Finnhub metric obj (fallback when SEC chybí)
+//   fhProfile  : OPTIONAL — Finnhub profile (jen meta info)
 //
-function normalize({ symbol, yahooData, fhMetrics, fhProfile, fhQuote }) {
+function normalize({ symbol, priceData, secData, fhMetrics, fhProfile }) {
   const s = (symbol || '').toUpperCase();
 
   // ── 1. Type detekce ──────────────────────────────────────────────────────
   let type = 'unknown';
   if (isCryptoTicker(s)) {
     type = 'crypto';
-  } else if (yahooData?.type) {
-    type = yahooData.type;       // stock | etf | crypto | …
-  } else if (fhProfile && fhProfile.ticker) {
-    // Finnhub nemá explicitní ETF flag v profile2 — defaultujeme na stock
+  } else if (priceData?.type && priceData.type !== 'unknown') {
+    type = priceData.type;
+  } else if (secData) {
+    type = 'stock';   // SEC pokrývá jen veřejné firmy (≈ stock)
+  } else if (fhProfile?.ticker) {
     type = 'stock';
   }
 
-  // ── 2. Cena: preferuj Finnhub quote (čerstvá), fallback Yahoo ────────────
-  let price = safeNum(fhQuote?.c);
-  if (!price || price <= 0) price = safeNum(yahooData?.price);
+  // ── 2. Cena (z price aggregátoru) ────────────────────────────────────────
+  const price = safeNum(priceData?.price);
+  const priceValid = price && price > 0;
 
-  // ── 3. Měna a profile info ───────────────────────────────────────────────
-  const currency = fhProfile?.currency || yahooData?.currency || null;
-  const exchange = fhProfile?.exchange || yahooData?.exchange || null;
-  const name     = fhProfile?.name || null;
-  const industry = fhProfile?.finnhubIndustry || null;
-  const marketCap = safeNum(fhProfile?.marketCapitalization);  // v milionech USD
+  // ── 3. Meta info ─────────────────────────────────────────────────────────
+  const currency = pick(priceData?.currency, fhProfile?.currency, 'USD');
+  const exchange = pick(priceData?.exchange, fhProfile?.exchange);
+  const name     = pick(secData?.name, fhProfile?.name, secData?.entityName);
+  const industry = pick(secData?.sicDescription, fhProfile?.finnhubIndustry);
+  const marketCap = safeNum(fhProfile?.marketCapitalization); // v milionech USD
 
-  // ── 4. Fundamentals z Finnhub ────────────────────────────────────────────
+  // ── 4. Fundamentals — priorita SEC > Finnhub ─────────────────────────────
   const m = fhMetrics || {};
+  const sec = secData || {};
 
-  // EPS TTM — Finnhub má více názvů, zkusíme všechny
-  const epsTtm = safeNum(
-    m.epsTTM ?? m['epsBasicExclExtraItemsTTM'] ?? m['epsInclExtraItemsTTM'] ?? m.epsAnnual
-  );
+  // EPS TTM
+  const epsTtm = safeNum(pick(
+    sec.epsTtm,
+    m.epsTTM, m['epsBasicExclExtraItemsTTM'], m['epsInclExtraItemsTTM'], m.epsAnnual
+  ));
 
-  // P/E TTM
-  const peTtm = safeNum(m.peTTM ?? m.peExclExtraTTM ?? m.peAnnual);
+  // P/E TTM (počítané z price/EPS pokud SEC poskytne EPS)
+  let peTtm = null;
+  if (priceValid && epsTtm && epsTtm > 0) {
+    peTtm = price / epsTtm;
+  } else {
+    peTtm = safeNum(pick(m.peTTM, m.peExclExtraTTM, m.peAnnual));
+  }
 
-  // P/S TTM
-  const psTtm = safeNum(m.psTTM ?? m.psAnnual);
+  // P/S TTM (z price × shares / revenue)
+  let psTtm = null;
+  if (priceValid && sec.revenue && sec.sharesOutstanding && sec.revenue > 0) {
+    psTtm = (price * sec.sharesOutstanding) / sec.revenue;
+  } else {
+    psTtm = safeNum(pick(m.psTTM, m.psAnnual));
+  }
 
-  // P/B
-  const pb = safeNum(m.pbAnnual ?? m.pbQuarterly);
+  // P/B (z price × shares / equity)
+  let pb = null;
+  if (priceValid && sec.equity && sec.sharesOutstanding && sec.equity > 0) {
+    pb = (price * sec.sharesOutstanding) / sec.equity;
+  } else {
+    pb = safeNum(pick(m.pbAnnual, m.pbQuarterly));
+  }
 
-  // Margins (Finnhub vrací v %, např. 25.4 = 25.4 %)
-  const grossMargin     = toPercent(m.grossMarginTTM ?? m.grossMarginAnnual);
-  const operatingMargin = toPercent(m.operatingMarginTTM ?? m.operatingMarginAnnual);
-  const netMargin       = toPercent(m.netProfitMarginTTM ?? m.netProfitMarginAnnual);
+  // Margins (SEC v %, Finnhub v % nebo decimal)
+  const grossMargin = safeNum(pick(
+    sec.grossMargin,
+    toPercent(m.grossMarginTTM ?? m.grossMarginAnnual)
+  ));
+  const operatingMargin = safeNum(pick(
+    sec.operatingMargin,
+    toPercent(m.operatingMarginTTM ?? m.operatingMarginAnnual)
+  ));
+  const netMargin = safeNum(pick(
+    sec.netMargin,
+    toPercent(m.netProfitMarginTTM ?? m.netProfitMarginAnnual)
+  ));
 
-  // Růsty — Finnhub často 0.123 = 12.3 % NEBO 12.3 = 12.3 %
-  const revenueGrowth = toPercent(
-    m.revenueGrowthTTMYoy ?? m.revenueGrowth5Y ?? m['revenueGrowthQuarterlyYoy']
-  );
-  const epsGrowth = toPercent(
-    m.epsGrowthTTMYoy ?? m['epsGrowth5Y'] ?? m['epsGrowthQuarterlyYoy']
-  );
+  // Růsty (v %)
+  const revenueGrowth = safeNum(pick(
+    sec.revenueGrowth,
+    toPercent(m.revenueGrowthTTMYoy ?? m.revenueGrowth5Y ?? m['revenueGrowthQuarterlyYoy'])
+  ));
+  const epsGrowth = safeNum(pick(
+    sec.epsGrowth,
+    toPercent(m.epsGrowthTTMYoy ?? m['epsGrowth5Y'] ?? m['epsGrowthQuarterlyYoy'])
+  ));
 
-  // Debt/Equity (poměr, NE procenta) — někdy přijde 1.5, někdy 150
-  let debtToEquity = safeNum(m['totalDebt/totalEquityAnnual'] ?? m['totalDebt/totalEquityQuarterly']);
+  // Debt/Equity
+  let debtToEquity = safeNum(pick(
+    sec.debtToEquity,
+    m['totalDebt/totalEquityAnnual'],
+    m['totalDebt/totalEquityQuarterly']
+  ));
   if (debtToEquity !== null && debtToEquity > 20) {
-    // pravděpodobně v procentech — převedeme zpět
     debtToEquity = debtToEquity / 100;
   }
 
-  // FCF per share — ne vždy dostupné ve free tier
-  const fcfPerShare = safeNum(
-    m.freeCashFlowPerShareTTM ?? m.freeCashFlowPerShareAnnual ?? m['fcfPerShareTTM']
-  );
+  // FCF / share
+  const fcfPerShare = safeNum(pick(
+    sec.fcfPerShare,
+    m.freeCashFlowPerShareTTM, m.freeCashFlowPerShareAnnual, m['fcfPerShareTTM']
+  ));
 
-  // Dividend yield — Finnhub vrací v % (např. 1.8 = 1.8 %)
-  const dividendYield = toPercent(m.dividendYieldIndicatedAnnual ?? m.currentDividendYieldTTM);
+  // Dividend yield (zatím jen Finnhub — SEC dividendy jsou complex)
+  const dividendYield = toPercent(pick(
+    m.dividendYieldIndicatedAnnual, m.currentDividendYieldTTM
+  ));
 
-  // ── 5. Validace price ────────────────────────────────────────────────────
-  const priceValid = price && price > 0;
+  // ── 5. Source tracking ───────────────────────────────────────────────────
+  const sources = {
+    price: priceValid ? (priceData?.source || 'unknown') : null,
+    fundamentals: secData
+      ? 'sec'
+      : (fhMetrics ? 'finnhub' : null),
+    profile: secData
+      ? 'sec'
+      : (fhProfile ? 'finnhub' : (priceData ? 'yahoo' : null)),
+  };
 
   return {
     symbol: s,
@@ -151,13 +196,18 @@ function normalize({ symbol, yahooData, fhMetrics, fhProfile, fhQuote }) {
     fcfPerShare,
     // Dividendy
     dividendYield,
+    // Bilance raw (pro audit)
+    revenue: safeNum(sec.revenue),
+    netIncome: safeNum(sec.netIncome),
+    fcf: safeNum(sec.fcf),
+    sharesOutstanding: safeNum(sec.sharesOutstanding),
+    asOfDate: sec.asOfDate || null,
+    // 52w range (z Yahoo)
+    fiftyTwoWeekHigh: safeNum(priceData?.fiftyTwoWeekHigh),
+    fiftyTwoWeekLow: safeNum(priceData?.fiftyTwoWeekLow),
     // Meta
-    sources: {
-      price: priceValid ? (safeNum(fhQuote?.c) ? 'finnhub' : 'yahoo') : null,
-      fundamentals: fhMetrics ? 'finnhub' : null,
-      profile: fhProfile ? 'finnhub' : (yahooData ? 'yahoo' : null),
-    },
+    sources,
   };
 }
 
-module.exports = { normalize, isCryptoTicker, safeNum, toPercent };
+module.exports = { normalize, isCryptoTicker, safeNum, toPercent, pick };

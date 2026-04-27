@@ -7,10 +7,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TTL = {
-  price:     5 * 60 * 1000,        //  5 min
-  fund:      12 * 60 * 60 * 1000,  // 12 h
-  fairvalue: 12 * 60 * 60 * 1000,  // 12 h
-  health:    10 * 60 * 1000,       // 10 min
+  price:     5 * 60 * 1000,             //  5 min  (Yahoo/Stooq quote)
+  fund:      7 * 24 * 60 * 60 * 1000,   //  7 dní  (SEC Company Facts — XBRL se mění zřídka)
+  fundShort: 12 * 60 * 60 * 1000,       // 12 h    (Finnhub fallback fundamenty)
+  fairvalue: 12 * 60 * 60 * 1000,       // 12 h    (kalkulovaný výsledek)
+  tickerMap: 24 * 60 * 60 * 1000,       // 24 h    (SEC ticker → CIK mapa)
+  health:    10 * 60 * 1000,            // 10 min
 };
 
 // { key: { value, expires } }
