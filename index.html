@@ -663,19 +663,19 @@
   <!-- FAIR VALUE TAB -->
   <div class="tab-panel" id="tab-fairvalue">
     <div class="tech-info-bar">
-      <strong>Fair Value Calculator v2</strong> — fundamentální férovka z <em>Finnhub</em>:
-      <strong>Earnings model</strong> (EPS × fairPE podle růstu) blendovaný s <strong>FCF modelem</strong> (FCF/share × multiple),
-      upravený o <strong>quality multiplier</strong> (marže + dluh + růst).
+      <strong>Fair Value Calculator v3</strong> — konzervativní Buffett-style férovka bez placeného API:
+      <strong>Owner Earnings / FCF DCF</strong> s diskontem 10 %, růstem tvrdě omezeným na 12 % a sanity capy na valuaci.
+      Model používá hlavně SEC EDGAR fundamenty + Yahoo/Stooq ceny; u firem bez kladného cash flow vrací raději <strong>N/A</strong> než falešné „levné“.
       Crypto a ETF: férovka <strong>N/A</strong> (chybí relevantní fundamenty).
-      Stav: <strong style="color:var(--bull)">UNDERVALUED</strong> = upside &gt; +15 %, <strong style="color:var(--bear)">OVERVALUED</strong> = upside &lt; -15 %, jinak <strong>FAIR</strong>.
+      Stav: <strong style="color:var(--bull)">UNDERVALUED</strong> = upside &gt; +15 %, <strong style="color:var(--bear)">OVERVALUED</strong> = upside &lt; -15 %, jinak <strong>FAIR</strong>. Extrémní výstupy jsou označené jako <strong>N/A</strong>.
       <span id="fv-status" style="margin-left:8px;color:var(--bull)"></span>
     </div>
 
     <div class="api-section" style="margin-bottom:14px; background:var(--surface); border:1px solid var(--border); padding:10px 14px; border-radius:6px">
       <span style="font-size:12px; color:var(--muted)">
-        🔑 <strong>Finnhub API klíč</strong> nastaven přes Netlify env proměnnou <code style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:3px">FINNHUB_API_KEY</code> (nikdy ne ve frontendu).
-        Zdarma na <a href="https://finnhub.io/register" target="_blank" style="color:var(--bull)">finnhub.io</a> · limit 60 calls/min.
-        <button class="btn btn-secondary" onclick="checkFvHealth()" style="margin-left:12px; padding:4px 10px; font-size:11px">Test API</button>
+        ✅ <strong>Bez placeného API:</strong> primárně SEC EDGAR fundamenty + Yahoo/Stooq ceny.
+        Finnhub je pouze volitelný fallback pro některá non-US data, pokud máš nastavenou Netlify env proměnnou <code style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:3px">FINNHUB_API_KEY</code>.
+        <button class="btn btn-secondary" onclick="checkFvHealth()" style="margin-left:12px; padding:4px 10px; font-size:11px">Test dat</button>
         <span id="fv-health-status" style="margin-left:10px; font-size:11px"></span>
       </span>
     </div>
@@ -729,7 +729,7 @@
           <th>Detail</th>
         </tr></thead>
         <tbody id="fv-tbody">
-          <tr><td colspan="11" style="text-align:center; color:var(--muted); padding:32px">Klikni "↻ Refresh ceny" pro načtení (poprvé ~60–90 s, dále díky cache &lt;5 s). Data: SEC EDGAR (fundamenty) + Yahoo/Stooq (ceny). Žádný API klíč není potřeba.</td></tr>
+          <tr><td colspan="11" style="text-align:center; color:var(--muted); padding:32px">Klikni "↻ Refresh ceny" pro načtení (poprvé ~60–90 s, dále díky cache &lt;5 s). Data: SEC EDGAR (fundamenty) + Yahoo/Stooq (ceny). Model je konzervativní: Owner Earnings / FCF DCF, growth cap, valuation capy a N/A pro nespolehlivé výstupy.</td></tr>
         </tbody>
       </table>
     </div>
@@ -2079,7 +2079,7 @@ function toast(msg, type = 'info') {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FAIR VALUE v2 — Finnhub backend
+// FAIR VALUE v3 — SEC/Yahoo primary, Finnhub optional fallback
 // ─────────────────────────────────────────────────────────────────────────────
 
 const FV_WATCHLIST = [
