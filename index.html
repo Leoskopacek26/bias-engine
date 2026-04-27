@@ -698,10 +698,8 @@
     <!-- Watchlist controls -->
     <div style="display:flex; align-items:center; gap:14px; margin-bottom:10px; flex-wrap:wrap">
       <div style="font-size:13px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--text)">Watchlist — Fair Value Dashboard</div>
-      <button class="btn btn-primary" onclick="runWatchlist()" id="fv-wl-btn" style="padding:6px 14px; font-size:11px">↻ Refresh</button>
-      <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); cursor:pointer">
-        <input type="checkbox" id="fv-wl-skip-cache" style="cursor:pointer"> Bez cache
-      </label>
+      <button class="btn btn-primary" onclick="runWatchlist('price')" id="fv-wl-price-btn" style="padding:6px 14px; font-size:11px" title="Vyhodí jen cenovou cache (fundamenty zůstanou — rychlé).">↻ Refresh ceny</button>
+      <button class="btn btn-primary" onclick="runWatchlist('all')" id="fv-wl-btn" style="padding:6px 14px; font-size:11px; background:var(--bear); border-color:var(--bear)" title="Vyhodí ceny + SEC fundamenty (pomalé, použít zřídka).">↻ Refresh vše</button>
       <span style="border-left:1px solid var(--border); height:18px"></span>
       <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--bull); cursor:pointer">
         <input type="checkbox" id="fv-flt-under" onchange="renderWatchlist()" style="cursor:pointer"> UNDERVALUED
@@ -725,11 +723,13 @@
           <th class="sortable" data-fcol="upside"     onclick="fvSortBy('upside')">Upside % <span class="sort-icon" id="fvi-upside"></span></th>
           <th class="sortable" data-fcol="status"     onclick="fvSortBy('status')">Stav <span class="sort-icon" id="fvi-status"></span></th>
           <th class="sortable" data-fcol="confidence" onclick="fvSortBy('confidence')">Conf. <span class="sort-icon" id="fvi-confidence"></span></th>
+          <th class="sortable" data-fcol="source"     onclick="fvSortBy('source')">Source <span class="sort-icon" id="fvi-source"></span></th>
+          <th class="sortable" data-fcol="updated"    onclick="fvSortBy('updated')">Updated <span class="sort-icon" id="fvi-updated"></span></th>
           <th>Method</th>
           <th>Detail</th>
         </tr></thead>
         <tbody id="fv-tbody">
-          <tr><td colspan="9" style="text-align:center; color:var(--muted); padding:32px">Klikni "↻ Refresh" pro spuštění watchlistu (~60–90 sekund pro 77 tickerů z důvodu rate limitu Finnhub 60/min).</td></tr>
+          <tr><td colspan="11" style="text-align:center; color:var(--muted); padding:32px">Klikni "↻ Refresh ceny" pro načtení (poprvé ~60–90 s, dále díky cache &lt;5 s). Data: SEC EDGAR (fundamenty) + Yahoo/Stooq (ceny). Žádný API klíč není potřeba.</td></tr>
         </tbody>
       </table>
     </div>
@@ -2225,50 +2225,90 @@ function renderFvCard(ticker, r) {
 }
 
 // ── Watchlist ───────────────────────────────────────────────────────────────
-async function runWatchlist() {
-  const btn = document.getElementById('fv-wl-btn');
-  const status = document.getElementById('fv-wl-status');
-  const tbody = document.getElementById('fv-tbody');
-  const skipCache = document.getElementById('fv-wl-skip-cache')?.checked;
-  btn.disabled = true;
-  btn.textContent = '...';
-  status.textContent = `Načítám ${FV_WATCHLIST.length} tickerů z Finnhub (rate-limit: 60/min)...`;
-  tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--muted); padding:32px">⏳ Načítám fair value pro ${FV_WATCHLIST.length} tickerů… (~60–90 s)</td></tr>`;
+// mode: 'price' (jen ceny — rychlé), 'all' (ceny + fundamenty — pomalé)
+async function runWatchlist(mode) {
+  mode = mode || 'price';
+  const btnPrice = document.getElementById('fv-wl-price-btn');
+  const btnAll   = document.getElementById('fv-wl-btn');
+  const status   = document.getElementById('fv-wl-status');
+  const tbody    = document.getElementById('fv-tbody');
+  if (btnPrice) { btnPrice.disabled = true; }
+  if (btnAll)   { btnAll.disabled = true; }
+  const activeBtn = mode === 'all' ? btnAll : btnPrice;
+  const origLabel = activeBtn?.textContent;
+  if (activeBtn) activeBtn.textContent = '...';
+  status.textContent = mode === 'all'
+    ? `Plný refresh ${FV_WATCHLIST.length} tickerů (SEC + Yahoo)…`
+    : `Refresh cen ${FV_WATCHLIST.length} tickerů (fundamenty z cache)…`;
+  tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; color:var(--muted); padding:32px">⏳ Načítám fair value pro ${FV_WATCHLIST.length} tickerů… ${mode === 'all' ? '(~30–60 s první běh, SEC fundamenty se cachují na 7 dní)' : '(typicky <10 s)'}</td></tr>`;
   try {
-    const url = '/.netlify/functions/fairvalue-watchlist'
-              + (skipCache ? '?refresh=1' : '?_=' + Date.now());
+    const param = mode === 'all' ? 'refresh=1' : 'refreshPrice=1';
+    const url = `/.netlify/functions/fairvalue-watchlist?${param}&_=${Date.now()}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     fvWatchlistData = data.results || {};
     const s = data.stats || { undervalued:0, fair:0, overvalued:0, na:0 };
-    const healthBadge = data.health?.ok
-      ? `<span style="color:var(--bull)">✓ Finnhub</span>`
-      : `<span style="color:var(--bear)">✗ ${data.health?.error || 'no health'}</span>`;
+    const sc = data.sourceCounts || {};
+    const secOK = data.health?.sec?.ok;
+    const priceOK = data.health?.price?.ok;
+    const healthBadge =
+        `<span style="color:${secOK ? 'var(--bull)' : 'var(--bear)'}">${secOK ? '✓' : '✗'} SEC</span> ` +
+        `<span style="color:${priceOK ? 'var(--bull)' : 'var(--bear)'}">${priceOK ? '✓' : '✗'} Yahoo</span>`;
     status.innerHTML = `${healthBadge} · ` +
                        `<span style="color:var(--bull)">U:${s.undervalued}</span> · ` +
                        `<span style="color:var(--muted)">F:${s.fair}</span> · ` +
                        `<span style="color:var(--bear)">O:${s.overvalued}</span> · ` +
-                       `<span style="color:var(--dim)">N/A:${s.na}</span> · ${data.ms||0}ms`;
-    console.log(`[watchlist] ${data.ms}ms, cache: ${data.cache?.entries} entries`);
+                       `<span style="color:var(--dim)">N/A:${s.na}</span> · ` +
+                       `<span style="color:var(--muted)">SEC:${sc.sec||0}/FH:${sc.finnhub||0}/none:${sc.none||0}</span> · ` +
+                       `${data.ms||0}ms`;
+    console.log(`[watchlist] ${data.ms}ms`, data.queues, data.cache);
     renderWatchlist();
   } catch (e) {
     status.innerHTML = '<span style="color:var(--bear)">Chyba: ' + e.message + '</span>';
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--bear); padding:32px">${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; color:var(--bear); padding:32px">${e.message}</td></tr>`;
   }
-  btn.disabled = false;
-  btn.textContent = '↻ Refresh';
+  if (btnPrice) btnPrice.disabled = false;
+  if (btnAll)   btnAll.disabled = false;
+  if (activeBtn) activeBtn.textContent = origLabel;
 }
 
 function fvSortBy(col) {
   if (fvSortCol === col) { fvSortDir *= -1; }
-  else { fvSortCol = col; fvSortDir = (col === 'ticker' || col === 'type' || col === 'status' || col === 'confidence') ? 1 : -1; }
+  else { fvSortCol = col; fvSortDir = (col === 'ticker' || col === 'type' || col === 'status' || col === 'confidence' || col === 'source') ? 1 : -1; }
   renderWatchlist();
-  ['ticker','type','price','fair','upside','status','confidence'].forEach(c => {
+  ['ticker','type','price','fair','upside','status','confidence','source','updated'].forEach(c => {
     const el = document.getElementById('fvi-' + c);
     if (!el) return;
     el.className = 'sort-icon ' + (c === fvSortCol ? (fvSortDir === 1 ? 'asc' : 'desc') : 'none');
   });
+}
+
+// "5m ago" / "2h ago" relative time
+function relTime(iso) {
+  if (!iso) return '—';
+  const t = new Date(iso).getTime();
+  if (!isFinite(t)) return '—';
+  const diff = Date.now() - t;
+  if (diff < 0) return 'now';
+  const s = Math.floor(diff / 1000);
+  if (s < 60)    return s + 's ago';
+  if (s < 3600)  return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  return Math.floor(s / 86400) + 'd ago';
+}
+
+function fvSourceBadge(src) {
+  if (!src) return '<span style="color:var(--muted)">—</span>';
+  const colors = {
+    sec:     ['#1a3a6e', '#9bc4ff'],   // modrá
+    finnhub: ['#3a2a4e', '#d6a8ff'],   // fialová
+    yahoo:   ['#4a3a1e', '#f5c97a'],   // žlutá
+    stooq:   ['#3a4a1e', '#c5e07a'],   // zelená
+    none:    ['#3a3a3a', '#999'],
+  };
+  const [bg, fg] = colors[src] || colors.none;
+  return `<span style="font-size:10px; background:${bg}; color:${fg}; padding:1px 6px; border-radius:3px; text-transform:uppercase">${src}</span>`;
 }
 
 function statusOrderVal(s) {
@@ -2315,6 +2355,9 @@ function renderWatchlist() {
     else if (fvSortCol === 'upside')     { va = ar.upsidePct ?? -999; vb = br.upsidePct ?? -999; }
     else if (fvSortCol === 'status')     { va = statusOrderVal(ar.status); vb = statusOrderVal(br.status); }
     else if (fvSortCol === 'confidence') { va = confidenceOrderVal(ar.confidence); vb = confidenceOrderVal(br.confidence); }
+    else if (fvSortCol === 'source')     { va = (ar.normalized?.sources?.fundamentals || 'z'); vb = (br.normalized?.sources?.fundamentals || 'z'); }
+    else if (fvSortCol === 'updated')    { va = ar.fetchedAt ? new Date(ar.fetchedAt).getTime() : 0;
+                                            vb = br.fetchedAt ? new Date(br.fetchedAt).getTime() : 0; }
     else                                 { va = a.ticker;             vb = b.ticker; }
     if (va < vb) return -fvSortDir;
     if (va > vb) return  fvSortDir;
@@ -2322,7 +2365,7 @@ function renderWatchlist() {
   });
 
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:var(--muted); padding:24px">Žádné výsledky odpovídající filtrům.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; color:var(--muted); padding:24px">Žádné výsledky odpovídající filtrům.</td></tr>`;
     return;
   }
 
@@ -2340,6 +2383,8 @@ function renderWatchlist() {
                     : r.confidence === 'MEDIUM' ? 'var(--gold)'
                     : r.confidence === 'LOW'    ? 'var(--text-dim)'
                     : 'var(--muted)';
+    const fundSrc  = r.normalized?.sources?.fundamentals || (r.type === 'crypto' ? r.normalized?.sources?.price : null);
+    const updated  = relTime(r.fetchedAt);
     return `<tr>
       <td><strong>${ticker}</strong></td>
       <td><span class="fv-type-pill ${typeCls}">${(r.type||'').toUpperCase()||'—'}</span></td>
@@ -2348,6 +2393,8 @@ function renderWatchlist() {
       <td class="${uCls}">${r.upsidePct != null ? sign + r.upsidePct.toFixed(1) + '%' : '<span style="color:var(--muted)">N/A</span>'}</td>
       <td><span class="fv-status ${sCls}">${r.status || 'N/A'}</span></td>
       <td><span style="font-size:10px; color:${confColor}; border:1px solid ${confColor}; padding:1px 5px; border-radius:3px">${r.confidence || 'N/A'}</span></td>
+      <td>${fvSourceBadge(fundSrc)}</td>
+      <td style="font-size:10px; color:var(--muted)" title="${r.fetchedAt || ''}">${updated}</td>
       <td style="font-size:10px; color:var(--muted)">${r.method || '—'}</td>
       <td><button class="fv-detail-btn" onclick="fvShowDetail('${ticker}')">Detail</button></td>
     </tr>`;
