@@ -1,18 +1,24 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Watchlist endpoint — 77 tickerů, dávkové zpracování
+// Watchlist endpoint — 77 tickerů, dávkové zpracování přes SEC + price
 // ─────────────────────────────────────────────────────────────────────────────
 //   GET /.netlify/functions/fairvalue-watchlist
-//   GET /.netlify/functions/fairvalue-watchlist?refresh=1
+//   GET /.netlify/functions/fairvalue-watchlist?refresh=1            (vše vyhodit)
+//   GET /.netlify/functions/fairvalue-watchlist?refreshPrice=1       (jen ceny)
+//   GET /.netlify/functions/fairvalue-watchlist?tickers=AAPL,MSFT
 //
-// Per-ticker error isolation: jeden krach neshazuje celou tabulku.
-// Chunk po 5 paralelně (Finnhub free tier 60/min, watchlist potřebuje cca
-// 4 calls/ticker × 77 = 308 calls — překročilo by minutový limit, proto
-// využíváme cache fundamentů na 12 h).
+// Strategie:
+//   - Per-ticker error isolation
+//   - Concurrency: SEC max 3 paralelně, ceny max 5 paralelně (queue.js)
+//   - Žádné dávky CHUNK_DELAY — fronty řídí rate-limiting samy
+//   - SEC fund cache 7 dní → druhý refresh během dne nedělá další SEC volání
+//   - Krypto/non-US: SEC vrátí "not in EDGAR" a my použijeme jen price
 // ─────────────────────────────────────────────────────────────────────────────
 
 const { calculateOne } = require('./fairvalue');
-const finnhub = require('./lib/finnhub');
+const sec   = require('./lib/sec-edgar');
+const price = require('./lib/price');
 const cache = require('./lib/cache');
+const { QUEUES } = require('./lib/queue');
 
 const WATCHLIST = [
   'CNSW','CNC','ADSK','BX','S','MU','VRSN','ASML','SMCI','HIMS',
@@ -25,18 +31,65 @@ const WATCHLIST = [
   'SIRI','TDOC','UAA','BYDDY','DSY','BTCUSD','ETHUSD',
 ];
 
-const CHUNK_SIZE = 5;
-const CHUNK_DELAY_MS = 1100;  // pauza mezi dávkami → respekt Finnhub 60/min
+exports.handler = async function(event) {
+  const qs = (event && event.queryStringParameters) || {};
+  const skipCache = qs.refresh === '1' || qs.skipCache === '1';
+  const refreshFund = qs.refresh === '1' || qs.refreshFund === '1';
+  // refreshPrice (--prices only): vyhodíme jen price cache, fund cache zůstane
+  const refreshPriceOnly = qs.refreshPrice === '1';
 
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+  const tickers = qs.tickers
+    ? qs.tickers.split(',').map(t => t.trim().toUpperCase()).filter(Boolean)
+    : WATCHLIST;
 
-async function processChunk(symbols, opts) {
-  return Promise.all(symbols.map(async sym => {
-    try {
-      const r = await calculateOne(sym, opts);
-      return [sym, r];
-    } catch (e) {
-      return [sym, {
+  const t0 = Date.now();
+
+  // ── Refresh-only-price: vyhodit price cache, ne fund ────────────────────
+  if (refreshPriceOnly) {
+    for (const t of tickers) cache.set(`price:${t}`, null, 1);
+  }
+  if (refreshFund) {
+    for (const t of tickers) {
+      cache.set(`sec:fund:${t}`, null, 1);
+      cache.set(`fv:${t}`, null, 1);
+    }
+  }
+  if (skipCache) {
+    for (const t of tickers) {
+      cache.set(`price:${t}`, null, 1);
+      cache.set(`fv:${t}`, null, 1);
+    }
+  }
+
+  // ── Health snapshot (cached 10 min) ─────────────────────────────────────
+  let health = cache.get('health:bundle');
+  if (!health || skipCache) {
+    const [s, p] = await Promise.all([sec.healthCheck(), price.healthCheck()]);
+    health = { sec: s, price: p, time: new Date().toISOString() };
+    cache.set('health:bundle', health, cache.TTL.health);
+  }
+
+  // ── Per-ticker zpracování (paralelně, queue řídí rate) ──────────────────
+  // calculateOne sám vede SEC a price přes QUEUES, takže můžeme střelit
+  // všech 77 najednou a nedostaneme 429.
+  const opts = {
+    skipCache: refreshPriceOnly || skipCache,
+    refreshFund: refreshFund,
+  };
+
+  const settle = await Promise.allSettled(
+    tickers.map(sym => calculateOne(sym, opts))
+  );
+
+  const results = {};
+  const order = [];
+  for (let i = 0; i < tickers.length; i++) {
+    const sym = tickers[i];
+    const s = settle[i];
+    if (s.status === 'fulfilled') {
+      results[sym] = s.value;
+    } else {
+      results[sym] = {
         symbol: sym,
         type: 'error',
         price: null,
@@ -45,52 +98,25 @@ async function processChunk(symbols, opts) {
         status: 'N/A',
         confidence: 'N/A',
         method: null,
-        explanation: `Chyba: ${e.message}`,
+        explanation: `Chyba: ${s.reason?.message || s.reason}`,
+        dataSource: null,
+        fetchedAt: new Date().toISOString(),
         debug: [],
-      }];
+      };
     }
-  }));
-}
-
-exports.handler = async function(event) {
-  const qs = (event && event.queryStringParameters) || {};
-  const skipCache = qs.refresh === '1' || qs.skipCache === '1';
-  const tickers = qs.tickers
-    ? qs.tickers.split(',').map(t => t.trim().toUpperCase()).filter(Boolean)
-    : WATCHLIST;
-
-  const t0 = Date.now();
-
-  // ── Health-check FMP/Finnhub na začátku ──────────────────────────────────
-  let healthCached = cache.get('health:finnhub');
-  if (!healthCached || skipCache) {
-    healthCached = await finnhub.healthCheck();
-    cache.set('health:finnhub', healthCached, cache.TTL.health);
-  }
-
-  // ── Per-chunk processing ─────────────────────────────────────────────────
-  const results = {};
-  const order = [];
-  const opts = { skipCache };
-
-  for (let i = 0; i < tickers.length; i += CHUNK_SIZE) {
-    const chunk = tickers.slice(i, i + CHUNK_SIZE);
-    const out = await processChunk(chunk, opts);
-    for (const [sym, r] of out) {
-      results[sym] = r;
-      order.push(sym);
-    }
-    // Pauza mezi dávkami pokud nás čeká další
-    if (i + CHUNK_SIZE < tickers.length) await sleep(CHUNK_DELAY_MS);
+    order.push(sym);
   }
 
   // ── Statistika ──────────────────────────────────────────────────────────
   const stats = { undervalued: 0, fair: 0, overvalued: 0, na: 0, total: tickers.length };
+  const sourceCounts = { sec: 0, finnhub: 0, none: 0 };
   for (const r of Object.values(results)) {
     if (r.status === 'UNDERVALUED')      stats.undervalued++;
     else if (r.status === 'OVERVALUED')  stats.overvalued++;
     else if (r.status === 'FAIR')        stats.fair++;
     else                                  stats.na++;
+    const src = r.normalized?.sources?.fundamentals || 'none';
+    sourceCounts[src] = (sourceCounts[src] || 0) + 1;
   }
 
   const ms = Date.now() - t0;
@@ -106,9 +132,14 @@ exports.handler = async function(event) {
       results,
       order,
       stats,
-      health: healthCached,
+      sourceCounts,
+      health,
       tickers,
       cache: cache.stats(),
+      queues: {
+        sec: QUEUES.sec.stats(),
+        price: QUEUES.price.stats(),
+      },
       ms,
       fetched_at: new Date().toISOString(),
     }),
