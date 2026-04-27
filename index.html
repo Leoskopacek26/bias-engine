@@ -162,7 +162,6 @@
   .cat-fx  { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent)44; }
   .cat-cross { background: #7b8fc420; color: #a0b0e0; border: 1px solid #7b8fc455; }
   .cat-com { background: var(--gold-dim); color: var(--gold); border: 1px solid var(--gold)44; }
-  .cat-crypto { background: #f7931a20; color: #f7931a; border: 1px solid #f7931a55; }
   .bias-badge {
     font-size: 11px; padding: 4px 10px; border-radius: 3px;
     font-weight: 500; display: inline-block; min-width: 68px; text-align: center;
@@ -313,7 +312,8 @@
   .toast.info { color: var(--muted); }
 
   /* WEIGHT EDITOR */
-
+  .weight-editor { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 20px; }
+  .we-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
   .we-instrument { }
   .we-sym { font-family: var(--font-head); font-size: 14px; font-weight: 600; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
   .we-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
@@ -329,120 +329,6 @@
   .sort-icon.asc::after  { content: '▲'; }
   .sort-icon.desc::after { content: '▼'; }
   .sort-icon.none::after { content: '⇅'; opacity: 0.3; }
-
-  .tf-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px; }
-  .tf-title { font-family:var(--font-head); font-size:15px; font-weight:600; }
-  .tf-subtitle { font-size:11px; color:var(--muted); font-family:var(--font-mono); font-weight:400; margin-left:8px; }
-  .tf-actions { display:flex; align-items:center; gap:8px; }
-  .tf-api-note { font-size:11px; color:var(--muted); margin-bottom:12px; }
-  .tf-output-wrap { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:20px 24px; min-height:200px; }
-  .tf-section { margin-bottom:20px; }
-  .tf-section-title { font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text); margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid var(--border); }
-  .tf-context { font-size:12px; color:var(--muted); line-height:1.8; }
-  .tf-pair-card { background:var(--surface2); border:1px solid var(--border2); border-radius:6px; padding:14px 16px; margin-bottom:10px; }
-  .tf-pair-card.bull { border-left:3px solid var(--bull); }
-  .tf-pair-card.bear { border-left:3px solid var(--bear); }
-  .tf-pair-card.best { border:1px solid var(--gold); background:var(--gold-dim); }
-  .tf-pair-header { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
-  .tf-pair-sym { font-family:var(--font-head); font-size:16px; font-weight:600; }
-  .tf-quality { font-size:11px; color:var(--muted); margin-left:auto; }
-  .tf-type-badge { font-size:10px; padding:2px 7px; border-radius:3px; background:var(--surface); border:1px solid var(--border2); color:var(--muted); }
-  .tf-why { font-size:12px; color:var(--text); line-height:1.7; margin-bottom:6px; }
-  .tf-factors { font-size:11px; color:var(--muted); }
-  .tf-avoid { font-size:12px; color:var(--muted); line-height:1.9; }
-  .tf-insight { background:var(--accent-dim); border-left:2px solid var(--accent); border-radius:0 4px 4px 0; padding:12px 14px; font-size:12px; color:var(--text); line-height:1.8; }
-  .tf-loading { font-size:12px; color:var(--muted); animation: blink 1.2s infinite; }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
-
-  .tech-info-bar { font-size:11px; color:var(--muted); margin-bottom:14px; line-height:1.7; padding:10px 14px; background:var(--surface); border:1px solid var(--border); border-radius:6px; }
-  .tech-badge { font-size:10px; padding:2px 7px; border-radius:3px; font-weight:500; display:inline-block; }
-  .tech-bull { background:var(--bull-dim); color:var(--bull); border:1px solid var(--bull-mid); }
-  .tech-bear { background:var(--bear-dim); color:var(--bear); border:1px solid var(--bear-mid); }
-  .tech-neu  { background:var(--surface2); color:var(--muted); border:1px solid var(--border2); }
-  .combo-bull { color:var(--bull); font-weight:500; }
-  .combo-bear { color:var(--bear); font-weight:500; }
-  .combo-neu  { color:var(--muted); }
-  .combo-warn { color:#ff9d2e; font-weight:500; }
-  .agree-yes { color:var(--bull); font-size:12px; }
-  .agree-no  { color:var(--bear); font-size:12px; }
-  .agree-na  { color:var(--muted); font-size:12px; }
-  .rsi-val   { font-family:var(--font-mono); font-size:12px; }
-  .rsi-ob    { color:var(--bear); }
-  .rsi-os    { color:var(--bull); }
-  .rsi-mid   { color:var(--muted); }
-
-  /* TIMEFRAME SEMAFOR */
-  .tf-cell { padding:6px 4px !important; text-align:center; }
-  .tf-pill {
-    display:inline-block; min-width:64px; padding:3px 6px; border-radius:3px;
-    font-size:10px; font-weight:600; letter-spacing:.04em; text-transform:uppercase;
-    border:1px solid;
-  }
-  .tf-pill-bull { background:var(--bull-dim); color:var(--bull); border-color:var(--bull-mid); }
-  .tf-pill-bear { background:var(--bear-dim); color:var(--bear); border-color:var(--bear-mid); }
-  .tf-pill-neu  { background:var(--surface2); color:var(--muted); border-color:var(--border2); }
-  .tf-pill-na   { background:var(--surface2); color:var(--dim); border-color:var(--border); }
-
-  /* HEADER TOOLTIP */
-  .th-tooltip { position:relative; cursor:help; }
-  .th-tooltip:hover::after {
-    content: attr(data-tooltip);
-    position:absolute;
-    top: calc(100% + 6px);
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--surface2);
-    color: var(--text);
-    border: 1px solid var(--border2);
-    border-radius: 4px;
-    padding: 8px 11px;
-    font-size: 11px;
-    font-weight: 400;
-    text-transform: none;
-    letter-spacing: 0;
-    line-height: 1.5;
-    white-space: normal;
-    width: 240px;
-    z-index: 50;
-    box-shadow: 0 4px 14px rgba(0,0,0,.4);
-    pointer-events: none;
-  }
-  .th-tooltip:hover::before {
-    content: '';
-    position:absolute;
-    top: calc(100% + 1px);
-    left: 50%;
-    transform: translateX(-50%);
-    border: 5px solid transparent;
-    border-bottom-color: var(--border2);
-    z-index: 51;
-    pointer-events: none;
-  }
-  .bias-table th.sortable .sort-icon { margin-left:3px; opacity:.5; font-size:9px; }
-
-  /* FAIR VALUE — status pills */
-  .fv-status { display:inline-block; min-width:96px; padding:3px 8px; border-radius:3px; font-size:10px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; border:1px solid; text-align:center; }
-  .fv-status-under { background:var(--bull-dim); color:var(--bull); border-color:var(--bull-mid); }
-  .fv-status-over  { background:var(--bear-dim); color:var(--bear); border-color:var(--bear-mid); }
-  .fv-status-fair  { background:var(--surface2); color:var(--muted); border-color:var(--border2); }
-  .fv-status-na    { background:var(--surface2); color:var(--dim); border-color:var(--border); }
-  .fv-type-pill { display:inline-block; padding:1px 7px; border-radius:3px; font-size:9px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; border:1px solid var(--border2); color:var(--muted); }
-  .fv-type-stock   { background:var(--surface2); }
-  .fv-type-etf     { background:#3a2f1f; color:#f7c843; border-color:#7a5e1f; }
-  .fv-type-crypto  { background:#3a2419; color:#f7931a; border-color:#7a4a1f; }
-  .fv-type-unknown { background:var(--surface2); color:var(--dim); }
-  .fv-type-error   { background:var(--bear-dim); color:var(--bear); border-color:var(--bear-mid); }
-  .fv-diff-pos { color:var(--bull); font-weight:600; }
-  .fv-diff-neg { color:var(--bear); font-weight:600; }
-  .fv-diff-neu { color:var(--muted); }
-  .fv-detail-card { background:var(--surface2); border:1px solid var(--border2); border-radius:6px; padding:14px 16px; margin-top:6px; }
-  .fv-detail-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:10px 16px; font-size:12px; margin-top:10px; }
-  .fv-detail-grid > div { display:flex; justify-content:space-between; gap:8px; padding:4px 0; border-bottom:1px solid var(--border); }
-  .fv-detail-grid > div span:first-child { color:var(--muted); }
-  .fv-detail-grid > div span:last-child  { color:var(--text); font-weight:500; }
-  .fv-breakdown { font-size:11px; color:var(--muted); margin-top:8px; line-height:1.6; }
-  .fv-detail-btn { background:none; border:1px solid var(--border2); color:var(--muted); cursor:pointer; padding:2px 8px; border-radius:3px; font-size:10px; }
-  .fv-detail-btn:hover { background:var(--surface2); color:var(--text); }
 
   @media (max-width: 640px) {
     .main { padding: 16px; }
@@ -490,9 +376,7 @@
     <button class="tab-btn active" onclick="switchTab('dashboard',this)">Dashboard</button>
     <button class="tab-btn" onclick="switchTab('backtest',this)">Back-test</button>
     <button class="tab-btn" onclick="switchTab('macro',this)">Macro data</button>
-    <button class="tab-btn" onclick="switchTab('technical',this)">Technická analýza</button>
-    <button class="tab-btn" onclick="switchTab('fairvalue',this)">Fair Value</button>
-    <button class="tab-btn" onclick="switchTab('tradefilter',this)">Trade Filter</button>
+    <button class="tab-btn" onclick="switchTab('weights',this)">Tune weights</button>
   </div>
 
   <!-- DASHBOARD TAB -->
@@ -503,36 +387,16 @@
       <div class="metric-card"><div class="mc-val val-neu" id="m-neu">—</div><div class="mc-lbl">Neutral</div></div>
       <div class="metric-card"><div class="mc-val val-gold" id="m-conf">—</div><div class="mc-lbl">Avg confidence</div></div>
       <div class="metric-card"><div class="mc-val" id="m-dxy" style="font-size:16px">—</div><div class="mc-lbl">DXY bias</div></div>
-      <div class="metric-card" id="m-sentiment-card" style="cursor:default">
-        <div class="mc-val" id="m-sentiment" style="font-size:15px">—</div>
-        <div class="mc-lbl">Risk sentiment</div>
-        <div id="m-vix" style="font-size:10px;color:var(--muted);margin-top:3px"></div>
-      </div>
-      <div class="metric-card" id="m-most-bull-card" onclick="const s=document.getElementById('m-most-bull').textContent;if(s&&s!=='—')selectRow(s)" style="cursor:pointer" title="Klikni pro detail">
-        <div class="mc-val val-bull" id="m-most-bull" style="font-size:16px;letter-spacing:.02em">—</div>
-        <div class="mc-lbl">Most bullish</div>
-        <div id="m-most-bull-pct" style="font-size:10px;color:var(--bull);margin-top:3px"></div>
-      </div>
-      <div class="metric-card" id="m-most-bear-card" onclick="const s=document.getElementById('m-most-bear').textContent;if(s&&s!=='—')selectRow(s)" style="cursor:pointer" title="Klikni pro detail">
-        <div class="mc-val val-bear" id="m-most-bear" style="font-size:16px;letter-spacing:.02em">—</div>
-        <div class="mc-lbl">Most bearish</div>
-        <div id="m-most-bear-pct" style="font-size:10px;color:var(--bear);margin-top:3px"></div>
-      </div>
     </div>
     <div class="table-wrap">
       <table class="bias-table" id="bias-table">
         <thead><tr id="sort-header">
-          <th onclick="sortBy('sym')" class="sortable th-tooltip" data-col="sym"
-              data-tooltip="Symbol obchodovaného instrumentu — FX páry, komodity (zlato, stříbro) a kryptoměny.">Instrument <span class="sort-icon" id="si-sym"></span></th>
-          <th onclick="sortBy('bias')" class="sortable th-tooltip" data-col="bias"
-              data-tooltip="Fundamentální bias dnešního dne na základě makro faktorů (DXY, výnosy, CPI, NFP, risk sentiment, geopolitika). Bullish = nákupní směr, Bearish = prodejní, Neutral = bez jasného směru.">Bias <span class="sort-icon" id="si-bias"></span></th>
-          <th onclick="sortBy('bull')" class="sortable th-tooltip" data-col="bull"
-              data-tooltip="Pravděpodobnost (%) býčího (vzestupného) směru, vypočítaná logistickou funkcí ze score makro faktorů.">Bullish <span class="sort-icon" id="si-bull"></span></th>
-          <th onclick="sortBy('bear')" class="sortable th-tooltip" data-col="bear"
-              data-tooltip="Pravděpodobnost (%) medvědího (sestupného) směru. Doplňuje Bullish do 100 %.">Bearish <span class="sort-icon" id="si-bear"></span></th>
-          <th onclick="sortBy('conf')" class="sortable th-tooltip" data-col="conf"
-              data-tooltip="Síla signálu na škále 1–5 podle absolutního skóre. Vyšší conf = silnější konvergence makro faktorů.">Confidence <span class="sort-icon" id="si-conf"></span></th>
-          <th class="th-tooltip" data-tooltip="Top 3 makro faktory s největším vlivem (kladným nebo záporným) na dnešní bias.">Key drivers</th>
+          <th onclick="sortBy('sym')" class="sortable" data-col="sym">Instrument <span class="sort-icon" id="si-sym"></span></th>
+          <th onclick="sortBy('bias')" class="sortable" data-col="bias">Bias <span class="sort-icon" id="si-bias"></span></th>
+          <th onclick="sortBy('bull')" class="sortable" data-col="bull">Bullish <span class="sort-icon" id="si-bull"></span></th>
+          <th onclick="sortBy('bear')" class="sortable" data-col="bear">Bearish <span class="sort-icon" id="si-bear"></span></th>
+          <th onclick="sortBy('conf')" class="sortable" data-col="conf">Confidence <span class="sort-icon" id="si-conf"></span></th>
+          <th>Key drivers</th>
         </tr></thead>
         <tbody id="bias-tbody">
           <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:32px">Connect your Claude API key and click Refresh to generate today's bias signals.</td></tr>
@@ -596,162 +460,15 @@
     <div style="font-size:11px;color:var(--muted)">Data sourced from FRED (St. Louis Federal Reserve), Frankfurter.app (ECB exchange rates). Refreshed on each engine run. All sources are free and public.</div>
   </div>
 
-
-
-  <!-- TECHNICAL ANALYSIS TAB -->
-  <div class="tab-panel" id="tab-technical">
-    <div class="tech-info-bar">
-      <strong>Multi-source intraday TA</strong> — krypto z <strong>Binance</strong> (BTC, ETH; vždy reálné svíčky), FX a kovy z <strong>TwelveData</strong> (s API klíčem) nebo z <strong>Frankfurter ECB</strong> (synthetic fallback bez klíče).
-      Pro každý timeframe (5m, 15m, 30m, 1h, 4h, 1D) je bias spočítán z EMA20/EMA50 stacku, RSI(14), MACD(12,26,9) cross/histogramu a 5-svíčkového trendu — výsledek je <em>confluence score</em> v rozsahu ±1.0 s thresholdem ±0.25.
-      Pro nejlepší kvalitu FX dat doporučujeme zdarma TwelveData klíč (8 req/min, 800/den).
-      <span id="tech-status" style="margin-left:8px;color:var(--bull)"></span>
+  <!-- WEIGHTS TAB -->
+  <div class="tab-panel" id="tab-weights">
+    <div class="we-desc">Adjust how much each macro factor influences the bias for each instrument. Positive = factor is bullish for the instrument when high. Negative = factor is bearish when high. These are the weights used in the bias calculation — tune them based on your own macro understanding.</div>
+    <div class="weight-editor">
+      <div class="we-grid" id="we-grid"></div>
     </div>
-    <div class="api-section" style="margin-bottom:14px">
-      <span class="api-label">TwelveData API Key <span style="color:var(--dim)">(volitelné — pro reálné FX/metals svíčky)</span></span>
-      <input class="api-input" type="password" id="twelve-key-input" placeholder="vlož svůj TwelveData API klíč..." autocomplete="off">
-      <button class="btn btn-primary" id="twelve-connect-btn" onclick="connectTwelve()">Uložit</button>
-      <span class="api-note">Zdarma na <a href="https://twelvedata.com" target="_blank">twelvedata.com</a> · Bez klíče se použije ECB synthetic data</span>
-    </div>
-    <div class="table-wrap">
-      <table class="bias-table" id="tech-table">
-        <thead><tr id="tech-sort-header">
-          <th class="sortable th-tooltip" data-tcol="sym"
-              data-tooltip="Symbol obchodovaného instrumentu — FX páry, komodity nebo kryptoměny."
-              onclick="techSortBy('sym')">Instrument <span class="sort-icon" id="tsi-sym"></span></th>
-          <th class="sortable th-tooltip tf-cell" data-tcol="tf_5m"
-              data-tooltip="Bias na 5-minutovém grafu. Velmi krátkodobý signál — reaguje na intraday momentum a šum. Vhodný pro skalpování."
-              onclick="techSortBy('tf_5m')">5m <span class="sort-icon" id="tsi-tf_5m"></span></th>
-          <th class="sortable th-tooltip tf-cell" data-tcol="tf_15m"
-              data-tooltip="Bias na 15-minutovém grafu. Krátkodobý směr během obchodní seance. Vhodné pro intraday vstupy."
-              onclick="techSortBy('tf_15m')">15m <span class="sort-icon" id="tsi-tf_15m"></span></th>
-          <th class="sortable th-tooltip tf-cell" data-tcol="tf_30m"
-              data-tooltip="Bias na 30-minutovém grafu. Vyhlazený krátkodobý trend, pomáhá filtrovat 5m/15m šum."
-              onclick="techSortBy('tf_30m')">30m <span class="sort-icon" id="tsi-tf_30m"></span></th>
-          <th class="sortable th-tooltip tf-cell" data-tcol="tf_1h"
-              data-tooltip="Bias na hodinovém grafu. Hlavní intraday timeframe — typický horizont swing trade pozic držených hodiny."
-              onclick="techSortBy('tf_1h')">1h <span class="sort-icon" id="tsi-tf_1h"></span></th>
-          <th class="sortable th-tooltip tf-cell" data-tcol="tf_4h"
-              data-tooltip="Bias na 4-hodinovém grafu. Středně-dobý trend — oblíbený mezi swing tradery, drží trade přes noc/dny."
-              onclick="techSortBy('tf_4h')">4h <span class="sort-icon" id="tsi-tf_4h"></span></th>
-          <th class="sortable th-tooltip tf-cell" data-tcol="tf_1D"
-              data-tooltip="Bias na denním grafu. Hlavní směr trhu — slouží jako kontextový filtr pro nižší timeframes."
-              onclick="techSortBy('tf_1D')">1D <span class="sort-icon" id="tsi-tf_1D"></span></th>
-          <th class="sortable th-tooltip" data-tcol="rsi"
-              data-tooltip="Relative Strength Index (14) na denním grafu. Hodnoty: <30 oversold (přeprodáno, potenciální obrat nahoru), >70 overbought (překoupeno, riziko korekce)."
-              onclick="techSortBy('rsi')">RSI (14) <span class="sort-icon" id="tsi-rsi"></span></th>
-          <th class="th-tooltip"
-              data-tooltip="Vztah mezi 20-denní a 50-denní EMA. EMA20 > EMA50 = krátkodobý uptrend. EMA20 < EMA50 = krátkodobý downtrend.">EMA trend</th>
-          <th class="sortable th-tooltip" data-tcol="momentum"
-              data-tooltip="Procentní pohyb ceny za posledních 5 dnů. Pozitivní = býčí momentum, negativní = medvědí. Hodnota nad ±0.3% má váhu v bias score."
-              onclick="techSortBy('momentum')">Momentum <span class="sort-icon" id="tsi-momentum"></span></th>
-          <th class="sortable th-tooltip" data-tcol="combo"
-              data-tooltip="Sloučení 1D technického biasu s fundamentálním biasem z dashboardu. Bullish/Bearish pouze když oba souhlasí. Konflikt = TA a fundamenty si protiřečí."
-              onclick="techSortBy('combo')">Kombinovaný bias <span class="sort-icon" id="tsi-combo"></span></th>
-          <th class="sortable th-tooltip" data-tcol="agree"
-              data-tooltip="Indikátor souhlasu mezi technickou analýzou (1D) a fundamentálním biasem. ✓ Shoda = vysoká důvěra ve směr. ✗ Konflikt = signály se rozcházejí, opatrnost."
-              onclick="techSortBy('agree')">Shoda <span class="sort-icon" id="tsi-agree"></span></th>
-        </tr></thead>
-        <tbody id="tech-tbody">
-          <tr><td colspan="12" style="text-align:center;color:var(--muted);padding:32px">Klikni "Vypočítat" pro načtení technické analýzy.</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <button class="btn btn-primary" style="margin-top:14px" onclick="runTechnical()" id="tech-run-btn">Vypočítat technickou analýzu</button>
-    <span style="font-size:11px;color:var(--muted);margin-left:12px">Stahuje multi-timeframe data z Binance + TwelveData/ECB (~10–20 sec)</span>
+    <button class="btn btn-primary" style="margin-top:14px" onclick="saveWeights()">Save weights & recalculate</button>
+    <button class="btn btn-ghost" style="margin-top:14px;margin-left:8px" onclick="resetWeights()">Reset to defaults</button>
   </div>
-
-  <!-- FAIR VALUE TAB -->
-  <div class="tab-panel" id="tab-fairvalue">
-    <div class="tech-info-bar">
-      <strong>Fair Value Calculator v2</strong> — fundamentální férovka z <em>Finnhub</em>:
-      <strong>Earnings model</strong> (EPS × fairPE podle růstu) blendovaný s <strong>FCF modelem</strong> (FCF/share × multiple),
-      upravený o <strong>quality multiplier</strong> (marže + dluh + růst).
-      Crypto a ETF: férovka <strong>N/A</strong> (chybí relevantní fundamenty).
-      Stav: <strong style="color:var(--bull)">UNDERVALUED</strong> = upside &gt; +15 %, <strong style="color:var(--bear)">OVERVALUED</strong> = upside &lt; -15 %, jinak <strong>FAIR</strong>.
-      <span id="fv-status" style="margin-left:8px;color:var(--bull)"></span>
-    </div>
-
-    <div class="api-section" style="margin-bottom:14px; background:var(--surface); border:1px solid var(--border); padding:10px 14px; border-radius:6px">
-      <span style="font-size:12px; color:var(--muted)">
-        🔑 <strong>Finnhub API klíč</strong> nastaven přes Netlify env proměnnou <code style="background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:3px">FINNHUB_API_KEY</code> (nikdy ne ve frontendu).
-        Zdarma na <a href="https://finnhub.io/register" target="_blank" style="color:var(--bull)">finnhub.io</a> · limit 60 calls/min.
-        <button class="btn btn-secondary" onclick="checkFvHealth()" style="margin-left:12px; padding:4px 10px; font-size:11px">Test API</button>
-        <span id="fv-health-status" style="margin-left:10px; font-size:11px"></span>
-      </span>
-    </div>
-
-    <!-- Single ticker form -->
-    <div style="background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:14px 16px; margin-bottom:18px">
-      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
-        <span style="font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-right:4px">Spočítat fair value</span>
-        <input class="api-input" id="fv-ticker-input" placeholder="AAPL, SPY, BTCUSD ..." style="flex:0 0 200px; text-transform:uppercase" autocomplete="off"
-               onkeydown="if(event.key==='Enter')runFairValueOne()">
-        <button class="btn btn-primary" onclick="runFairValueOne()" id="fv-one-btn">Spočítat</button>
-        <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); cursor:pointer">
-          <input type="checkbox" id="fv-skip-cache" style="cursor:pointer"> Bez cache (čerstvá data)
-        </label>
-        <span id="fv-one-msg" style="font-size:11px; color:var(--muted)"></span>
-      </div>
-      <div id="fv-one-result" style="margin-top:14px; display:none"></div>
-    </div>
-
-    <!-- Watchlist controls -->
-    <div style="display:flex; align-items:center; gap:14px; margin-bottom:10px; flex-wrap:wrap">
-      <div style="font-size:13px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--text)">Watchlist — Fair Value Dashboard</div>
-      <button class="btn btn-primary" onclick="runWatchlist('price')" id="fv-wl-price-btn" style="padding:6px 14px; font-size:11px" title="Vyhodí jen cenovou cache (fundamenty zůstanou — rychlé).">↻ Refresh ceny</button>
-      <button class="btn btn-primary" onclick="runWatchlist('all')" id="fv-wl-btn" style="padding:6px 14px; font-size:11px; background:var(--bear); border-color:var(--bear)" title="Vyhodí ceny + SEC fundamenty (pomalé, použít zřídka).">↻ Refresh vše</button>
-      <span style="border-left:1px solid var(--border); height:18px"></span>
-      <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--bull); cursor:pointer">
-        <input type="checkbox" id="fv-flt-under" onchange="renderWatchlist()" style="cursor:pointer"> UNDERVALUED
-      </label>
-      <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--bear); cursor:pointer">
-        <input type="checkbox" id="fv-flt-over" onchange="renderWatchlist()" style="cursor:pointer"> OVERVALUED
-      </label>
-      <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); cursor:pointer">
-        <input type="checkbox" id="fv-flt-na" onchange="renderWatchlist()" style="cursor:pointer"> N/A
-      </label>
-      <span id="fv-wl-status" style="font-size:11px; color:var(--muted); margin-left:auto"></span>
-    </div>
-
-    <div class="table-wrap">
-      <table class="bias-table" id="fv-table">
-        <thead><tr id="fv-sort-header">
-          <th class="sortable" data-fcol="ticker"     onclick="fvSortBy('ticker')">Ticker <span class="sort-icon" id="fvi-ticker"></span></th>
-          <th class="sortable" data-fcol="type"       onclick="fvSortBy('type')">Typ <span class="sort-icon" id="fvi-type"></span></th>
-          <th class="sortable" data-fcol="price"      onclick="fvSortBy('price')">Cena <span class="sort-icon" id="fvi-price"></span></th>
-          <th class="sortable" data-fcol="fair"       onclick="fvSortBy('fair')">Fair value <span class="sort-icon" id="fvi-fair"></span></th>
-          <th class="sortable" data-fcol="upside"     onclick="fvSortBy('upside')">Upside % <span class="sort-icon" id="fvi-upside"></span></th>
-          <th class="sortable" data-fcol="status"     onclick="fvSortBy('status')">Stav <span class="sort-icon" id="fvi-status"></span></th>
-          <th class="sortable" data-fcol="confidence" onclick="fvSortBy('confidence')">Conf. <span class="sort-icon" id="fvi-confidence"></span></th>
-          <th class="sortable" data-fcol="source"     onclick="fvSortBy('source')">Source <span class="sort-icon" id="fvi-source"></span></th>
-          <th class="sortable" data-fcol="updated"    onclick="fvSortBy('updated')">Updated <span class="sort-icon" id="fvi-updated"></span></th>
-          <th>Method</th>
-          <th>Detail</th>
-        </tr></thead>
-        <tbody id="fv-tbody">
-          <tr><td colspan="11" style="text-align:center; color:var(--muted); padding:32px">Klikni "↻ Refresh ceny" pro načtení (poprvé ~60–90 s, dále díky cache &lt;5 s). Data: SEC EDGAR (fundamenty) + Yahoo/Stooq (ceny). Žádný API klíč není potřeba.</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- TRADE FILTER TAB -->
-  <div class="tab-panel" id="tab-tradefilter">
-    <div class="tf-header">
-      <div class="tf-title">Trade Filter <span class="tf-subtitle">AI-powered · prop trader perspective</span></div>
-      <div class="tf-actions">
-        <button class="btn btn-primary" onclick="runTradeFilter()" id="tf-run-btn">Generovat analýzu</button>
-        <span id="tf-status" style="font-size:11px;color:var(--muted);margin-left:10px"></span>
-      </div>
-    </div>
-    <div class="tf-api-note" id="tf-api-note"></div>
-    <div id="tf-output" class="tf-output-wrap">
-      <div style="color:var(--muted);font-size:12px;padding:20px 0">
-        Klikni "Generovat analýzu" — AI zpracuje dnešní fundamentální + technická data a vrátí pouze high-probability trade setupy.
-      </div>
-    </div>
-  </div>
-
 
 </div>
 
@@ -784,9 +501,6 @@ const INSTRUMENTS = [
   // Komodity
   {sym:'XAUUSD', cat:'com', base:'XAU', quote:'USD', grp:'com'},
   {sym:'XAGUSD', cat:'com', base:'XAG', quote:'USD', grp:'com'},
-  // Krypto
-  {sym:'BTCUSD', cat:'crypto', base:'BTC', quote:'USD', grp:'crypto'},
-  {sym:'ETHUSD', cat:'crypto', base:'ETH', quote:'USD', grp:'crypto'},
 ];
 
 const FACTORS = ['dxy','yields10y','cpi_surprise','nfp_surprise','risk_sentiment','geo_risk'];
@@ -802,108 +516,78 @@ const FACTOR_LABELS = {
 // Default weight matrix: instrument → factor → weight (-1 to +1)
 // Positive weight = bullish signal when factor is high
 const DEFAULT_WEIGHTS = {
-  // Kalibrováno oproti Forex Fundamentals 22.4.2026
-  // Hlavní změna: cross páry mají snížený risk_sentiment vliv
-  // a zvýšený yields10y pro JPY páry (yield diferenciál dominuje)
-  EURUSD: {dxy:-0.42, yields10y:-0.20, cpi_surprise:-0.14, nfp_surprise:-0.10, risk_sentiment:+0.12, geo_risk:-0.04},
-  GBPUSD: {dxy:-0.38, yields10y:-0.18, cpi_surprise:-0.12, nfp_surprise:-0.10, risk_sentiment:+0.10, geo_risk:-0.08},
-  USDJPY: {dxy:+0.18, yields10y:+0.38, cpi_surprise:+0.10, nfp_surprise:+0.08, risk_sentiment:+0.08, geo_risk:-0.24},
-  USDCHF: {dxy:+0.30, yields10y:+0.18, cpi_surprise:+0.12, nfp_surprise:+0.08, risk_sentiment:+0.08, geo_risk:-0.18},
-  AUDUSD: {dxy:-0.26, yields10y:-0.10, cpi_surprise:-0.08, nfp_surprise:+0.05, risk_sentiment:+0.26, geo_risk:-0.07},
-  USDCAD: {dxy:+0.28, yields10y:+0.14, cpi_surprise:+0.10, nfp_surprise:+0.08, risk_sentiment:-0.12, geo_risk:+0.08},
-  NZDUSD: {dxy:-0.26, yields10y:-0.10, cpi_surprise:-0.08, nfp_surprise:+0.04, risk_sentiment:+0.24, geo_risk:-0.10},
-  // Křížové páry — snížený risk_sentiment, zvýšený yields10y
-  EURGBP: {dxy:+0.02, yields10y:+0.04, cpi_surprise:+0.12, nfp_surprise:+0.05, risk_sentiment:-0.04, geo_risk:-0.03},
-  EURJPY: {dxy:-0.02, yields10y:+0.25, cpi_surprise:-0.03, nfp_surprise:-0.02, risk_sentiment:+0.06, geo_risk:-0.06},
-  EURCHF: {dxy:+0.04, yields10y:+0.14, cpi_surprise:+0.08, nfp_surprise:+0.04, risk_sentiment:+0.20, geo_risk:-0.06},
-  EURAUD: {dxy:-0.04, yields10y:+0.08, cpi_surprise:+0.07, nfp_surprise:+0.03, risk_sentiment:-0.22, geo_risk:+0.06},
-  EURCAD: {dxy:-0.04, yields10y:+0.06, cpi_surprise:+0.06, nfp_surprise:+0.02, risk_sentiment:-0.14, geo_risk:+0.12},
-  GBPJPY: {dxy:-0.03, yields10y:+0.26, cpi_surprise:-0.05, nfp_surprise:-0.03, risk_sentiment:+0.08, geo_risk:-0.07},
-  GBPAUD: {dxy:-0.03, yields10y:+0.04, cpi_surprise:+0.02, nfp_surprise:+0.02, risk_sentiment:-0.30, geo_risk:+0.05},
-  AUDJPY: {dxy:-0.02, yields10y:+0.22, cpi_surprise:-0.03, nfp_surprise:-0.02, risk_sentiment:+0.18, geo_risk:-0.11},
-  CADJPY: {dxy:-0.02, yields10y:+0.24, cpi_surprise:-0.03, nfp_surprise:-0.02, risk_sentiment:+0.20, geo_risk:-0.11},
-  NZDJPY: {dxy:-0.02, yields10y:+0.22, cpi_surprise:-0.03, nfp_surprise:-0.02, risk_sentiment:+0.18, geo_risk:-0.11},
-  XAUUSD: {dxy:-0.38, yields10y:-0.28, cpi_surprise:+0.10, nfp_surprise:-0.08, risk_sentiment:-0.03, geo_risk:+0.13},
-  XAGUSD: {dxy:-0.32, yields10y:-0.24, cpi_surprise:+0.08, nfp_surprise:-0.06, risk_sentiment:+0.10, geo_risk:+0.10},
-  // Krypto — silně risk-on aktiva, negativní korelace s DXY a real yields
-  BTCUSD: {dxy:-0.30, yields10y:-0.25, cpi_surprise:+0.10, nfp_surprise:+0.04, risk_sentiment:+0.35, geo_risk:+0.05},
-  ETHUSD: {dxy:-0.32, yields10y:-0.28, cpi_surprise:+0.08, nfp_surprise:+0.03, risk_sentiment:+0.40, geo_risk:-0.02},
+  // ── HLAVNÍ PÁRY ──────────────────────────────────────────────────────────────
+  // dxy: USD sila vs daný pár | yields10y: US výnosy | risk_sentiment: risk-on/off
+  EURUSD: {dxy:-0.40, yields10y:-0.22, cpi_surprise:-0.15, nfp_surprise:-0.10, risk_sentiment:+0.08, geo_risk:-0.05},
+  GBPUSD: {dxy:-0.38, yields10y:-0.20, cpi_surprise:-0.14, nfp_surprise:-0.10, risk_sentiment:+0.10, geo_risk:-0.08},
+  USDJPY: {dxy:+0.30, yields10y:+0.35, cpi_surprise:+0.12, nfp_surprise:+0.10, risk_sentiment:+0.08, geo_risk:-0.05},
+  USDCHF: {dxy:+0.32, yields10y:+0.20, cpi_surprise:+0.12, nfp_surprise:+0.08, risk_sentiment:+0.12, geo_risk:-0.16},
+  AUDUSD: {dxy:-0.28, yields10y:-0.12, cpi_surprise:-0.08, nfp_surprise:+0.05, risk_sentiment:+0.28, geo_risk:-0.09},
+  USDCAD: {dxy:+0.30, yields10y:+0.15, cpi_surprise:+0.10, nfp_surprise:+0.08, risk_sentiment:-0.10, geo_risk:+0.07},
+  NZDUSD: {dxy:-0.28, yields10y:-0.12, cpi_surprise:-0.08, nfp_surprise:+0.04, risk_sentiment:+0.26, geo_risk:-0.12},
+  // ── KŘÍŽOVÉ PÁRY ─────────────────────────────────────────────────────────────
+  // Křížové páry reagují na relativní sílu obou měn, ne přímo na USD
+  // Pozitivní dxy = silný USD = bearish na EUR stranu, bullish na JPY/CHF (safe haven)
+  // EURGBP: EUR vs GBP — ECB vs BoE divergence, riskové toky
+  EURGBP: {dxy:+0.05, yields10y:+0.08, cpi_surprise:+0.06, nfp_surprise:+0.04, risk_sentiment:-0.15, geo_risk:-0.20},
+  // EURJPY: EUR vs JPY — výnosový diferenciál EU/JP, risk sentiment (JPY safe haven)
+  EURJPY: {dxy:-0.10, yields10y:+0.30, cpi_surprise:-0.08, nfp_surprise:-0.05, risk_sentiment:+0.25, geo_risk:-0.22},
+  // EURCHF: EUR vs CHF — geopolitické riziko dominuje (CHF safe haven), ECB vs SNB
+  EURCHF: {dxy:+0.08, yields10y:+0.12, cpi_surprise:+0.05, nfp_surprise:+0.03, risk_sentiment:+0.18, geo_risk:-0.30},
+  // EURAUD: EUR vs AUD — risk sentiment (AUD komoditní), čínský vliv
+  EURAUD: {dxy:-0.08, yields10y:+0.10, cpi_surprise:+0.05, nfp_surprise:+0.02, risk_sentiment:-0.32, geo_risk:+0.05},
+  // EURCAD: EUR vs CAD — ropa ovlivňuje CAD, ECB vs BoC
+  EURCAD: {dxy:-0.06, yields10y:+0.08, cpi_surprise:+0.04, nfp_surprise:+0.02, risk_sentiment:-0.20, geo_risk:+0.10},
+  // GBPJPY: "The Dragon" — vysoce volatilní, kombinuje GBP momentum + JPY carry
+  GBPJPY: {dxy:-0.08, yields10y:+0.32, cpi_surprise:-0.10, nfp_surprise:-0.08, risk_sentiment:+0.30, geo_risk:-0.22},
+  // GBPAUD: GBP vs AUD — BoE vs RBA, risk sentiment
+  GBPAUD: {dxy:-0.06, yields10y:+0.08, cpi_surprise:+0.04, nfp_surprise:+0.02, risk_sentiment:-0.28, geo_risk:+0.04},
+  // AUDJPY: čistý risk-on/off pár — AUD nahoru při risk-on, JPY nahoru při risk-off
+  AUDJPY: {dxy:-0.05, yields10y:+0.22, cpi_surprise:-0.06, nfp_surprise:-0.04, risk_sentiment:+0.40, geo_risk:-0.25},
+  // CADJPY: CAD carry vs JPY safe haven, ropa hraje roli
+  CADJPY: {dxy:-0.05, yields10y:+0.20, cpi_surprise:-0.05, nfp_surprise:-0.04, risk_sentiment:+0.35, geo_risk:-0.22},
+  // NZDJPY: similar to AUDJPY — risk-on/off, NZD commodity/China exposure
+  NZDJPY: {dxy:-0.05, yields10y:+0.22, cpi_surprise:-0.06, nfp_surprise:-0.04, risk_sentiment:+0.38, geo_risk:-0.25},
+  // ── KOMODITY ─────────────────────────────────────────────────────────────────
+  XAUUSD: {dxy:-0.38, yields10y:-0.30, cpi_surprise:+0.10, nfp_surprise:-0.08, risk_sentiment:-0.05, geo_risk:+0.09},
+  XAGUSD: {dxy:-0.32, yields10y:-0.25, cpi_surprise:+0.08, nfp_surprise:-0.06, risk_sentiment:+0.10, geo_risk:+0.09},
 };
 
 let weights = JSON.parse(JSON.stringify(DEFAULT_WEIGHTS));
-
-// macroData inicializováno okamžitě se záložními hodnotami — nikdy null
-let macroData = {
-  dxy_change: 0, yields10y: 4.28, yields10y_change: 0,
-  cpi_latest: 2.4, cpi_prev: 2.8, cpi_surprise: -0.2,
-  nfp_latest: 228, nfp_consensus: 140, nfp_surprise: 88,
-  risk_sentiment: 0, geo_risk: 0.50, vix: 27.0,
-  rates: {}, sources: {}, fxSource: 'default',
-  currency_scores: { USD:0, EUR:0, GBP:0, JPY:0, CHF:0, AUD:0, CAD:0, NZD:0 },
-  strong_ccys: [], weak_ccys: [],
-  nfp_actual: 228, nfp_consensus: 140, cpi_actual: 2.4,
-  fetched_at: new Date().toISOString(),
-  norm: {
-    dxy: 0, yields10y: 0.28, cpi_surprise: -0.67,
-    nfp_surprise: 0.59, risk_sentiment: -0.75, geo_risk: 0.50,
-  },
-};
-
+let macroData = null;
 let biasResults = [];
 let selectedRow = null;
 let apiKey = localStorage.getItem('bias_engine_key') || '';
-let twelveKey = localStorage.getItem('twelve_data_key') || '';
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 
-window.addEventListener('load', () => {
-  // 1. Načti nastavení okamžitě
+window.addEventListener('load', async () => {
+  setLoadingMsg('Loading saved settings...');
   if (apiKey) {
     document.getElementById('api-key-input').value = apiKey;
     setConnected(true);
   }
-  if (twelveKey) {
-    const tk = document.getElementById('twelve-key-input');
-    if (tk) tk.value = twelveKey;
-  }
   const saved = localStorage.getItem('bias_engine_weights');
   if (saved) { try { weights = JSON.parse(saved); } catch(e){} }
+  buildWeightEditor();
   updateSortIcons();
-
-  // 2. Vykresli dashboard okamžitě se záložními daty
+  setLoadingMsg('Fetching macro data...');
+  await fetchMacroData();
+  renderMacroTab();
+  // Auto-run engine so dashboard is populated immediately
   biasResults = INSTRUMENTS.map(inst => calcBias(inst.sym, macroData.norm));
   renderTable();
   renderMetrics();
-  renderMacroTab();
-
-  // 3. Skryj loading overlay HNED — nezávisí na síti
-  document.getElementById('loading-overlay').classList.add('hidden');
-
-  // 4. Načti živá data NA POZADÍ — neblokuje UI
-  loadLiveDataBackground();
+  // Update status to show data source
+  const src = macroData.fxSource === 'live' ? 'Živá data ✓'
+    : macroData.fxSource === 'live-direct' ? 'Částečná živá data'
+    : 'Záložní data';
+  document.getElementById('status-text').textContent = src;
+  document.getElementById('status-dot').className = 'status-dot' + (macroData.fxSource.startsWith('live') ? ' live' : '');
+  setTimeout(() => {
+    document.getElementById('loading-overlay').classList.add('hidden');
+  }, 600);
 });
-
-async function loadLiveDataBackground() {
-  document.getElementById('status-text').textContent = 'Načítám data...';
-  try {
-    await fetchMacroData();
-    // Přepočítej s živými daty
-    biasResults = INSTRUMENTS.map(inst => calcBias(inst.sym, macroData.norm));
-    renderTable();
-    renderMetrics();
-    renderMacroTab();
-    const src = macroData.fxSource === 'live' ? 'Živá data ✓'
-      : macroData.fxSource === 'live-direct' ? 'Částečná živá data'
-      : 'Záložní data';
-    document.getElementById('status-text').textContent = src;
-    document.getElementById('status-dot').className = 'status-dot' + (macroData.fxSource.startsWith('live') ? ' live' : '');
-    document.getElementById('last-update').textContent =
-      'Aktualizováno ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-  } catch(e) {
-    document.getElementById('status-text').textContent = 'Záložní data';
-    console.error('Background data load failed:', e);
-  }
-}
 
 function setLoadingMsg(msg) {
   document.getElementById('loading-msg').textContent = msg;
@@ -928,20 +612,6 @@ function setConnected(on) {
   document.getElementById('status-text').textContent = on ? 'Claude AI připojen' : 'Bez AI komentářů';
 }
 
-function connectTwelve() {
-  const input = document.getElementById('twelve-key-input');
-  const key = input ? input.value.trim() : '';
-  if (!key) {
-    twelveKey = '';
-    localStorage.removeItem('twelve_data_key');
-    toast('TwelveData klíč odstraněn — bude se používat ECB synthetic fallback', 'info');
-    return;
-  }
-  twelveKey = key;
-  localStorage.setItem('twelve_data_key', key);
-  toast('TwelveData klíč uložen — klikni "Vypočítat" pro reálná intradenní data', 'success');
-}
-
 // ── MACRO DATA — Netlify Function ────────────────────────────────────────────
 // Volá serverovou funkci /.netlify/functions/macro
 // Server stahuje: FX (ECB), 10Y výnosy (FRED), VIX (Yahoo) — bez CORS omezení
@@ -952,72 +622,54 @@ function rebuildNorm() {
     yields10y:     clamp((macroData.yields10y - 4.0) / 1.0, -1, 1),
     cpi_surprise:  clamp(macroData.cpi_surprise / 0.3,  -1, 1),
     nfp_surprise:  clamp(macroData.nfp_surprise / 150,  -1, 1),
-    risk_sentiment:clamp(-(macroData.vix - 18)  / 12,  -1, 1),  // /12 = méně extrémní při vysokém VIX
+    risk_sentiment:clamp(-(macroData.vix - 18)  / 10,  -1, 1),
     geo_risk:      clamp(macroData.geo_risk,             -1, 1),
   };
 }
 
 async function fetchMacroData() {
-  // macroData je už inicializováno — jen reset fxSource
-  macroData.fxSource = 'default';
-  macroData.fetched_at = new Date().toISOString();
-
-  // Pomocná funkce pro fetch s timeoutem
-  const fetchWithTimeout = (url, ms=8000) => {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), ms);
-    return fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(t));
+  // Záložní výchozí hodnoty pro případ výpadku
+  macroData = {
+    dxy_change: 0, yields10y: 4.34, yields10y_change: 0,
+    cpi_latest: 3.2, cpi_prev: 3.4, cpi_surprise: -0.2,
+    nfp_latest: 272, nfp_consensus: 185, nfp_surprise: 87,
+    risk_sentiment: 0, geo_risk: 0.35, vix: 18.2,
+    rates: {}, sources: {}, fxSource: 'default',
+    fetched_at: new Date().toISOString(),
   };
 
   try {
     setLoadingMsg('Stahuji makro data...');
-    const res = await fetchWithTimeout('/.netlify/functions/macro', 8000);
+    const res = await fetch('/.netlify/functions/macro');
     if (res.ok) {
       const d = await res.json();
-      if (d.yields10y)              macroData.yields10y      = d.yields10y;
-      if (d.yields10y_prev)         macroData.yields10y_prev = d.yields10y_prev;
-      if (d.dxy_change !== undefined) macroData.dxy_change   = d.dxy_change;
+      // Přepíš výchozí hodnoty živými daty
+      if (d.yields10y)    macroData.yields10y    = d.yields10y;
+      if (d.dxy_change !== undefined) macroData.dxy_change = d.dxy_change;
       if (d.cpi_surprise !== undefined) macroData.cpi_surprise = d.cpi_surprise;
       if (d.nfp_surprise !== undefined) macroData.nfp_surprise = d.nfp_surprise;
-      if (d.vix)                    macroData.vix            = d.vix;
-      if (d.geo_risk)               macroData.geo_risk        = d.geo_risk;
-      if (d.rates)                  macroData.rates           = d.rates;
-      if (d.sources)                macroData.sources         = d.sources;
-      if (d.currency_scores)        macroData.currency_scores = d.currency_scores;
-      if (d.strong_ccys)            macroData.strong_ccys     = d.strong_ccys;
-      if (d.weak_ccys)              macroData.weak_ccys       = d.weak_ccys;
-      if (d.nfp_actual)             macroData.nfp_actual      = d.nfp_actual;
-      if (d.nfp_consensus)          macroData.nfp_consensus   = d.nfp_consensus;
-      if (d.cpi_actual)             macroData.cpi_actual      = d.cpi_actual;
-      if (d.cb_rates)               macroData.cb_rates        = d.cb_rates;
-      if (d.pair_biases)            macroData.pair_biases         = d.pair_biases;
-      if (d.currency_confidence)    macroData.currency_confidence = d.currency_confidence;
-      if (d.regime_weights)         macroData.regime_weights      = d.regime_weights;
-      if (d.dxy_trend_3d !== undefined) macroData.dxy_trend_3d    = d.dxy_trend_3d;
-      if (d.market_regime)          macroData.market_regime   = d.market_regime;
-      if (d.dxy_trend_5d !== undefined) macroData.dxy_trend_5d = d.dxy_trend_5d;
-      if (d.yields_10y)             macroData.yields_10y_ccy  = d.yields_10y;
-      if (d.cb_rates)               macroData.cb_rates        = d.cb_rates;
+      if (d.vix)          macroData.vix          = d.vix;
+      if (d.geo_risk)     macroData.geo_risk      = d.geo_risk;
+      if (d.rates)        macroData.rates         = d.rates;
+      if (d.sources)      macroData.sources       = d.sources;
       macroData.fxSource  = 'live';
       macroData.fetched_at = d.fetched_at || new Date().toISOString();
     }
   } catch(e) {
+    // Netlify Function nedostupná (lokální soubor) — použijeme záložní data
     macroData.fxSource = 'offline';
-    // Záloha: přímý Frankfurter s krátkým timeoutem
+    // Záloha: zkus přímý Frankfurter (funguje lokálně)
     try {
-      // Pozn.: frankfurter.app dělá 301 → frankfurter.dev a ten nemá CORS hlavičku
-      // pro náš origin. Voláme rovnou nový endpoint, který CORS má (Access-Control-Allow-Origin: *).
-      const r = await fetchWithTimeout('https://api.frankfurter.dev/v1/latest?base=USD&symbols=EUR,GBP,JPY,CHF,AUD,CAD,NZD', 4000);
+      const r = await fetch('https://api.frankfurter.app/latest?from=USD&to=EUR,GBP,JPY,CHF,AUD,CAD,NZD');
       if (r.ok) {
         const fx = await r.json();
         macroData.rates = fx.rates;
-        if (fx.rates.EUR) macroData.dxy_change = parseFloat(((1.085 - 1/fx.rates.EUR)*4).toFixed(3));
+        if (fx.rates.EUR) {
+          macroData.dxy_change = parseFloat(((1.085 - 1/fx.rates.EUR) * 4).toFixed(3));
+        }
         macroData.fxSource = 'live-direct';
       }
-    } catch(e2) {
-      // Obojí selhalo — pokračuj se záložními daty, nezasekni se
-      macroData.fxSource = 'offline';
-    }
+    } catch(e2) {}
   }
 
   rebuildNorm();
@@ -1027,29 +679,7 @@ async function fetchMacroData() {
 // ── BIAS ENGINE ───────────────────────────────────────────────────────────────
 
 function calcBias(sym, norm) {
-  // Pokud máme serverové pair biases (multi-měnový model), použij je
-  if (macroData && macroData.pair_biases && macroData.pair_biases[sym]) {
-    const pb = macroData.pair_biases[sym];
-    const bull_prob = pb.bull / 100;
-    const bear_prob = pb.bear / 100;
-    // Drivers ze serverového modelu
-    const drivers = pb.drivers || [];
-    const contributions = { server_model: pb.score_diff || 0 };
-    return {
-      sym,
-      bias: pb.bias,
-      bull: pb.bull,
-      bear: pb.bear,
-      conf: pb.conf,
-      score: pb.score_diff || 0,
-      contributions,
-      topDrivers: drivers,
-    };
-  }
-
-  // Fallback: původní US-centrický model
   const w = weights[sym];
-  if (!w) return { sym, bias:'Neutral', bull:50, bear:50, conf:1, score:0, contributions:{}, topDrivers:[] };
   let score = 0;
   const contributions = {};
   for (const f of FACTORS) {
@@ -1057,27 +687,16 @@ function calcBias(sym, norm) {
     contributions[f] = c;
     score += c;
   }
-  const dxy = norm.dxy || 0;
-  const USD_CONTEXT = {
-    EURJPY:+0.35, EURCHF:+0.25, EURGBP:+0.10,
-    GBPJPY:+0.28, AUDJPY:+0.22, CADJPY:+0.25,
-    NZDJPY:+0.20, EURAUD:-0.10, EURCAD:-0.06, GBPAUD:-0.15,
-  };
-  if (USD_CONTEXT[sym] !== undefined) {
-    const correction = USD_CONTEXT[sym] * (-dxy);
-    score += correction;
-    contributions['usd_context'] = correction;
-  }
+  // Sigmoid → bullish probability
   const k = 3.5;
   const bull_prob = 1 / (1 + Math.exp(-score * k));
   const bear_prob = 1 - bull_prob;
   const bias = bull_prob > 0.60 ? 'Bullish' : bear_prob > 0.60 ? 'Bearish' : 'Neutral';
+  // Confidence 1-5 from distance from 0.5
   const conf = Math.min(5, Math.max(1, Math.round(Math.abs(score) * 6)));
+  // Top 3 drivers by absolute contribution
   const sorted = Object.entries(contributions).sort((a,b) => Math.abs(b[1]) - Math.abs(a[1]));
-  const topDrivers = sorted.slice(0, 3).map(([k]) => {
-    if (k === 'usd_context') return 'USD kontext';
-    return FACTOR_LABELS[k] || k;
-  });
+  const topDrivers = sorted.slice(0, 3).map(([k]) => FACTOR_LABELS[k]);
   return {sym, bias, bull: Math.round(bull_prob*100), bear: Math.round(bear_prob*100), conf, score, contributions, topDrivers};
 }
 
@@ -1153,8 +772,8 @@ function renderTable() {
   tbody.innerHTML = sorted.map(r => {
     const inst = INSTRUMENTS.find(i => i.sym === r.sym);
     const grp = inst ? inst.grp : 'major';
-    const badgeCls = grp==='crypto' ? 'cat-crypto' : grp==='com' ? 'cat-com' : grp==='cross' ? 'cat-cross' : 'cat-fx';
-    const badgeTxt = grp==='crypto' ? 'Crypto' : grp==='com' ? 'Commodity' : grp==='cross' ? 'Cross' : 'Major';
+    const badgeCls = grp==='com' ? 'cat-com' : grp==='cross' ? 'cat-cross' : 'cat-fx';
+    const badgeTxt = grp==='com' ? 'Commodity' : grp==='cross' ? 'Cross' : 'Major';
     return `
     <tr onclick="selectRow('${r.sym}')" id="row-${r.sym}">
       <td><span class="sym">${r.sym}</span><span class="cat-badge ${badgeCls}">${badgeTxt}</span></td>
@@ -1185,66 +804,6 @@ function renderMetrics() {
   const dxyEl = document.getElementById('m-dxy');
   dxyEl.textContent = macroData.dxy_change > 0 ? 'USD ↑ Strong' : macroData.dxy_change < 0 ? 'USD ↓ Weak' : 'USD Neutral';
   dxyEl.className = 'mc-val ' + dxyCls;
-
-  // ── Risk sentiment ──────────────────────────────────────────────────────────
-  const vix = macroData.vix || 18.2;
-  const sentEl   = document.getElementById('m-sentiment');
-  const sentCard = document.getElementById('m-sentiment-card');
-  const vixEl    = document.getElementById('m-vix');
-  let sentText, sentCls, sentBorder;
-  if (vix < 15) {
-    sentText = 'Risk-On 🟢'; sentCls = 'val-bull'; sentBorder = 'var(--bull-mid)';
-  } else if (vix < 20) {
-    sentText = 'Mírný Risk-On'; sentCls = 'val-bull'; sentBorder = 'var(--bull-mid)';
-  } else if (vix < 25) {
-    sentText = 'Neutrální'; sentCls = 'val-neu'; sentBorder = 'var(--neu)44';
-  } else if (vix < 30) {
-    sentText = 'Mírný Risk-Off'; sentCls = 'val-bear'; sentBorder = 'var(--bear-mid)';
-  } else {
-    sentText = 'Risk-Off 🔴'; sentCls = 'val-bear'; sentBorder = 'var(--bear-mid)';
-  }
-  sentEl.textContent = sentText;
-  sentEl.className = 'mc-val ' + sentCls;
-  sentCard.style.borderColor = sentBorder;
-  vixEl.textContent = 'VIX ' + vix.toFixed(1);
-
-  // ── Most bullish ────────────────────────────────────────────────────────────
-  const bullish = [...biasResults].filter(r => r.bias === 'Bullish')
-    .sort((a,b) => b.bull - a.bull || b.conf - a.conf);
-  const mostBull = bullish[0];
-  const mbEl  = document.getElementById('m-most-bull');
-  const mbPct = document.getElementById('m-most-bull-pct');
-  const mbCard = document.getElementById('m-most-bull-card');
-  if (mostBull) {
-    mbEl.textContent  = mostBull.sym;
-    mbPct.textContent = mostBull.bull + '% bull · conf ' + '●'.repeat(mostBull.conf) + '○'.repeat(5-mostBull.conf);
-    mbCard.style.borderColor = 'var(--bull-mid)';
-    mbCard.style.cursor = 'pointer';
-  } else {
-    mbEl.textContent  = '—';
-    mbPct.textContent = 'žádný bullish signál';
-    mbCard.style.borderColor = '';
-    mbCard.style.cursor = 'default';
-  }
-
-  // ── Most bearish ────────────────────────────────────────────────────────────
-  const bearish = [...biasResults].filter(r => r.bias === 'Bearish')
-    .sort((a,b) => b.bear - a.bear || b.conf - a.conf);
-  const mostBear = bearish[0];
-  const mbrEl   = document.getElementById('m-most-bear');
-  const mbrPct  = document.getElementById('m-most-bear-pct');
-  const mbrCard = document.getElementById('m-most-bear-card');
-  if (mostBear) {
-    mbrEl.textContent  = mostBear.sym;
-    mbrPct.textContent = mostBear.bear + '% bear · conf ' + '●'.repeat(mostBear.conf) + '○'.repeat(5-mostBear.conf);
-    mbrCard.style.borderColor = 'var(--bear-mid)';
-    mbrCard.style.cursor = 'pointer';
-  } else {
-    mbrEl.textContent  = '—';
-    mbrPct.textContent = 'žádný bearish signál';
-    mbrCard.style.borderColor = '';
-    mbrCard.style.cursor = 'default';
-  }
 }
 
 // ── ROW SELECTION + AI COMMENTARY ────────────────────────────────────────────
@@ -1316,23 +875,29 @@ Write only the 2-3 sentence explanation. Be concise and specific.`;
 }
 
 async function callClaude(prompt) {
-  if (!apiKey) return 'Zadej Claude API klíč pro AI komentáře.';
   try {
-    // Voláme serverovou proxy funkci — žádné CORS omezení
-    const res = await fetch('/.netlify/functions/claude', {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey, prompt }),
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-calls': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 200,
+        messages: [{ role: 'user', content: prompt }]
+      })
     });
     if (!res.ok) {
-      let msg = res.status;
-      try { const e = await res.json(); msg = e.error?.message || msg; } catch(_){}
-      return 'API chyba: ' + msg;
+      const err = await res.json();
+      return 'API error: ' + (err.error?.message || res.status);
     }
     const data = await res.json();
-    return data.content?.[0]?.text || 'Prázdná odpověď.';
+    return data.content?.[0]?.text || 'No response received.';
   } catch(e) {
-    return 'Chyba při volání AI: ' + e.message;
+    return 'Could not reach Claude API: ' + e.message;
   }
 }
 
@@ -1640,26 +1205,12 @@ function showBtHistory(sym) {
 function renderMacroTab() {
   if (!macroData) return;
   const d = macroData;
-  const cb = d.cb_rates || {};
-  const cs = d.currency_scores || {};
   const items = [
     {name:'DXY daily change', val:(d.dxy_change>0?'+':'')+d.dxy_change+'%', cls:d.dxy_change>0?'positive':'negative', src:(d.sources&&d.sources.dxy)||'Odvozeno z EUR/USD (ECB)'},
     {name:'US 10Y yield', val:d.yields10y+'%', cls:'', change:(d.yields10y_change>0?'+':'')+d.yields10y_change+' bps', src:(d.sources&&d.sources.yields)||'FRED DGS10'},
     {name:'CPI (latest)', val:d.cpi_latest+'%', cls:'', change:'Surprise: '+(d.cpi_surprise>0?'+':'')+d.cpi_surprise+'%', src:'BLS / FRED'},
     {name:'NFP (latest)', val:d.nfp_latest+'k', cls:'', change:'vs '+d.nfp_consensus+'k expected', src:'BLS'},
-    {name:'VIX', val:d.vix, cls:d.vix<18?'positive':d.vix>25?'negative':'', src:'Yahoo Finance'},
-    {name:'Market regime', val:d.market_regime||'Neutral', cls:'', src:'VIX + yield dispersion'},
-    {name:'Regime weights', val:'S:'+(d.regime_weights?Math.round(d.regime_weights.s*100)+'% ':33+'%')+'C:'+(d.regime_weights?Math.round(d.regime_weights.c*100)+'%':33+'%')+' M:'+(d.regime_weights?Math.round(d.regime_weights.m*100)+'%':34+'%'), cls:'', src:'Dynamic per regime'},
-    {name:'DXY 5D trend', val:(d.dxy_trend_5d>0?'+':'')+d.dxy_trend_5d+'%', cls:d.dxy_trend_5d>0.5?'positive':d.dxy_trend_5d<-0.5?'negative':'', src:'EUR/USD 5-day'},
-    {name:'Fed rate (USD)', val:(cb.USD||4.33)+'%', cls:'', src:'FRED FEDFUNDS'},
-    {name:'ECB rate (EUR)', val:(cb.EUR||2.50)+'%', cls:'', src:'FRED ECBDFR'},
-    {name:'BoE rate (GBP)', val:(cb.GBP||4.50)+'%', cls:'', src:'FRED BOERUKQ'},
-    {name:'BoJ rate (JPY)', val:(cb.JPY||0.50)+'%', cls:'', src:'FRED BoJ'},
-    {name:'RBA rate (AUD)', val:(cb.AUD||4.10)+'%', cls:'', src:'FRED RBA'},
-    {name:'BoC rate (CAD)', val:(cb.CAD||2.75)+'%', cls:'', src:'FRED BoC'},
-    {name:'Skore EUR', val:(cs.EUR>=0?'+':'')+cs.EUR, cls:cs.EUR>15?'positive':cs.EUR<-15?'negative':'', src:'Multi-CCY model'},
-    {name:'Skore JPY', val:(cs.JPY>=0?'+':'')+cs.JPY, cls:cs.JPY>15?'positive':cs.JPY<-15?'negative':'', src:'Multi-CCY model'},
-    {name:'Skore GBP', val:(cs.GBP>=0?'+':'')+cs.GBP, cls:cs.GBP>15?'positive':cs.GBP<-15?'negative':'', src:'Multi-CCY model'},
+    {name:'VIX', val:d.vix, cls:d.vix<18?'positive':d.vix>25?'negative':'', src:'Risk sentiment proxy'},
     {name:'Geo risk score', val:(d.geo_risk*100).toFixed(0)+'/100', cls:d.geo_risk>0.5?'negative':'', src:'Event-based estimate'},
     {name:'Risk sentiment', val:d.risk_sentiment>0.2?'Risk-on':d.risk_sentiment<-0.2?'Risk-off':'Neutral', cls:d.risk_sentiment>0.2?'positive':d.risk_sentiment<-0.2?'negative':'', src:'Composite'},
   ];
@@ -1680,7 +1231,45 @@ function renderMacroTab() {
 
 // ── WEIGHT EDITOR ─────────────────────────────────────────────────────────────
 
+function buildWeightEditor() {
+  const grid = document.getElementById('we-grid');
+  grid.innerHTML = INSTRUMENTS.map(inst => `
+    <div class="we-instrument">
+      <div class="we-sym">${inst.sym}</div>
+      ${FACTORS.map(f => `
+        <div class="we-row">
+          <div class="we-label">${FACTOR_LABELS[f]}</div>
+          <input class="we-slider" type="range" min="-50" max="50" step="1"
+            value="${Math.round(weights[inst.sym][f]*100)}"
+            oninput="updateWeightVal(this,'${inst.sym}','${f}')">
+          <div class="we-val" id="wv-${inst.sym}-${f}">${weights[inst.sym][f]>0?'+':''}${weights[inst.sym][f].toFixed(2)}</div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
 
+function updateWeightVal(el, sym, factor) {
+  const v = el.value / 100;
+  weights[sym][factor] = v;
+  document.getElementById(`wv-${sym}-${factor}`).textContent = (v>0?'+':'')+v.toFixed(2);
+}
+
+function saveWeights() {
+  localStorage.setItem('bias_engine_weights', JSON.stringify(weights));
+  if (biasResults.length > 0) {
+    biasResults = INSTRUMENTS.map(inst => calcBias(inst.sym, macroData.norm));
+    renderTable();
+    renderMetrics();
+  }
+  toast('Weights saved & signals recalculated', 'success');
+}
+
+function resetWeights() {
+  weights = JSON.parse(JSON.stringify(DEFAULT_WEIGHTS));
+  buildWeightEditor();
+  toast('Weights reset to defaults', 'info');
+}
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 
@@ -1694,381 +1283,6 @@ function switchTab(id, btn) {
 }
 
 let toastTimer;
-// ── TECHNICKÁ ANALÝZA ─────────────────────────────────────────────────────────
-// Stahuje historická ECB data a počítá EMA20/50, RSI14, momentum pro každý pár
-
-let techCache = null;
-
-async function runTechnical() {
-  const btn = document.getElementById('tech-run-btn');
-  const status = document.getElementById('tech-status');
-  btn.disabled = true;
-  btn.textContent = 'Načítám...';
-  status.textContent = 'Stahuji a počítám na serveru...';
-
-  try {
-    // Vezmi klíč live z inputu — nemusíš klikat "Uložit" před "Vypočítat"
-    const liveInput = document.getElementById('twelve-key-input');
-    const liveKey = (liveInput && liveInput.value.trim()) || twelveKey;
-    if (liveKey && liveKey !== twelveKey) {
-      twelveKey = liveKey;
-      localStorage.setItem('twelve_data_key', liveKey);
-    }
-    // Cache-bust query param zabrání tomu, aby Netlify Edge cache vracel starou odpověď
-    const ts = '_=' + Date.now();
-    const url = '/.netlify/functions/techdata?' + ts + (liveKey ? '&twelveKey=' + encodeURIComponent(liveKey) : '');
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    // data.results = { EURUSD: {bias, rsi, emaTrend, momentum, conf, tfBias{...}, indicators{...}}, ... }
-    renderTechnicalResults(data.results, data.timeframes ? data.timeframes.length : 6);
-    techCache = data;
-    const fetched = data.fetched_at ? new Date(data.fetched_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
-    // Honest status — nelže pokud backend neposlal metadata
-    const hasNewBackend = !!(data.sources || data.stats || data.timeframes);
-    if (!hasNewBackend) {
-      status.innerHTML = '<span style="color:var(--bear)">⚠ Backend je STARÝ techdata.js — push nový do GitHubu</span>';
-    } else {
-      const s = data.sources || {};
-      const fxSrc     = s.fx     || s.fx_metals || (data.twelveKeyUsed ? 'TwelveData' : 'ECB synthetic');
-      const metalsSrc = s.metals || s.fx_metals || 'Stooq';
-      const cryptoSrc = s.crypto || 'Bybit→Kraken';
-      const stats = data.stats ? `B${data.stats.Bullish}/N${data.stats.Neutral}/b${data.stats.Bearish}` : '';
-      status.innerHTML = `<span style="color:var(--bull)">✓ FX:${fxSrc} · Metals:${metalsSrc} · Crypto:${cryptoSrc}</span>` +
-                        (stats ? ` · <span style="color:var(--muted)">${stats}</span>` : '') +
-                        (fetched ? ` · <span style="color:var(--muted)">${fetched}</span>` : '');
-    }
-    if (data.debug && Array.isArray(data.debug)) {
-      console.log('[techdata debug log — ' + data.debug.length + ' lines]');
-      data.debug.forEach(line => console.log(line));
-    } else {
-      console.warn('[techdata] backend nevrátil debug log — pravděpodobně běží stará verze techdata.js');
-    }
-    btn.textContent = 'Obnovit';
-  } catch(e) {
-    status.textContent = 'Chyba: ' + e.message;
-    btn.textContent = 'Zkusit znovu';
-  }
-  btn.disabled = false;
-}
-
-// ── TECHNICKÁ TABULKA — řazení & vykreslení ──────────────────────────────────
-let techRowsData = [];          // poslední data pro re-render při řazení
-let techDays = 0;
-let techSortCol = null;
-let techSortDir = 1;            // 1 = asc, -1 = desc
-const TF_KEYS = ['5m', '15m', '30m', '1h', '4h', '1D'];
-
-function biasOrderVal(b) {
-  if (b === 'Bullish') return 3;
-  if (b === 'Neutral') return 2;
-  if (b === 'Bearish') return 1;
-  return 0; // 'Konflikt' / fallback
-}
-function comboOrderVal(c) {
-  if (c === 'Bullish')  return 3;
-  if (c === 'Neutral')  return 2;
-  if (c === 'Bearish')  return 1;
-  if (c === 'Konflikt') return 0;
-  return 2;
-}
-function agreeOrderVal(a) {
-  if (a === 'yes')     return 3;
-  if (a === 'partial') return 2;
-  if (a === 'no')      return 1;
-  return 0; // 'na'
-}
-
-function techSortBy(col) {
-  if (techSortCol === col) {
-    techSortDir *= -1;
-  } else {
-    techSortCol = col;
-    // Default: u jména a mom abecedně/nízké první, jinak high first
-    techSortDir = (col === 'sym') ? 1 : -1;
-  }
-  renderTechRows();
-  updateTechSortIcons();
-}
-
-function updateTechSortIcons() {
-  const cols = ['sym','tf_5m','tf_15m','tf_30m','tf_1h','tf_4h','tf_1D','rsi','momentum','combo','agree'];
-  cols.forEach(c => {
-    const el = document.getElementById('tsi-' + c);
-    const th = document.querySelector(`#tech-sort-header [data-tcol="${c}"]`);
-    if (!el || !th) return;
-    if (c === techSortCol) {
-      el.className = 'sort-icon ' + (techSortDir === 1 ? 'asc' : 'desc');
-      th.classList.add('sort-active');
-    } else {
-      el.className = 'sort-icon none';
-      th.classList.remove('sort-active');
-    }
-  });
-}
-
-function getSortedTechRows() {
-  if (!techSortCol) return techRowsData;
-  return [...techRowsData].sort((a, b) => {
-    let va, vb;
-    if (techSortCol === 'sym')      { return techSortDir * a.sym.localeCompare(b.sym); }
-    if (techSortCol.startsWith('tf_')) {
-      const k = techSortCol.slice(3);
-      va = biasOrderVal(a.tfBias[k]); vb = biasOrderVal(b.tfBias[k]);
-    }
-    else if (techSortCol === 'rsi')      { va = a.rsi;        vb = b.rsi; }
-    else if (techSortCol === 'momentum') { va = a.momentumNum; vb = b.momentumNum; }
-    else if (techSortCol === 'combo')    { va = comboOrderVal(a.combo); vb = comboOrderVal(b.combo); }
-    else if (techSortCol === 'agree')    { va = agreeOrderVal(a.agree); vb = agreeOrderVal(b.agree); }
-    else return 0;
-    return techSortDir * (va - vb);
-  });
-}
-
-function tfPillClass(b) {
-  if (b === 'Bullish') return 'tf-pill tf-pill-bull';
-  if (b === 'Bearish') return 'tf-pill tf-pill-bear';
-  if (b === 'Neutral') return 'tf-pill tf-pill-neu';
-  return 'tf-pill tf-pill-na';
-}
-function tfPillLabel(b) {
-  if (b === 'Bullish') return 'BULL';
-  if (b === 'Bearish') return 'BEAR';
-  if (b === 'Neutral') return 'NEUTRAL';
-  return '—';
-}
-
-function renderTechnicalResults(results, days) {
-  const tbody = document.getElementById('tech-tbody');
-  if (!results) { tbody.innerHTML = '<tr><td colspan="12" style="color:var(--muted);padding:20px">Žádná data</td></tr>'; return; }
-  techDays = days;
-
-  // Sestav řádky
-  techRowsData = INSTRUMENTS.map(inst => {
-    const tech = results[inst.sym] || { bias:'Neutral', rsi:50, emaTrend:'—', momentum:'0.00%', conf:0, tfBias:{} };
-    const fund = biasResults.find(r => r.sym === inst.sym);
-    const fundBias = fund ? fund.bias : 'Neutral';
-
-    let combo = 'Neutral';
-    if (tech.bias !== 'Neutral' && fundBias !== 'Neutral') {
-      combo = tech.bias === fundBias ? tech.bias : 'Konflikt';
-    } else if (tech.bias !== 'Neutral') combo = tech.bias;
-    else if (fundBias !== 'Neutral') combo = fundBias;
-
-    const agree = tech.conf === 0 ? 'na'
-      : tech.bias === fundBias ? 'yes'
-      : (tech.bias === 'Neutral' || fundBias === 'Neutral') ? 'partial' : 'no';
-
-    // Doplň chybějící timeframes
-    const tfBias = {};
-    for (const k of TF_KEYS) tfBias[k] = (tech.tfBias && tech.tfBias[k]) || 'Neutral';
-
-    const momentumNum = parseFloat(String(tech.momentum).replace('%','').replace('+','')) || 0;
-
-    return {
-      sym: inst.sym,
-      grp: inst.grp,
-      bias: tech.bias,
-      rsi: tech.rsi || 50,
-      emaTrend: tech.emaTrend || '—',
-      momentum: tech.momentum || '0.00%',
-      momentumNum,
-      tfBias,
-      combo,
-      agree,
-    };
-  });
-
-  renderTechRows();
-  updateTechSortIcons();
-}
-
-function renderTechRows() {
-  const tbody = document.getElementById('tech-tbody');
-  if (!tbody) return;
-  const rows = getSortedTechRows();
-
-  tbody.innerHTML = rows.map(r => {
-    const grp = r.grp;
-    const bc = grp==='crypto'?'cat-crypto':grp==='com'?'cat-com':grp==='cross'?'cat-cross':'cat-fx';
-    const bl = grp==='crypto'?'Crypto':grp==='com'?'Commodity':grp==='cross'?'Cross':'Major';
-    const rsiCls = r.rsi > 70 ? 'rsi-ob' : r.rsi < 30 ? 'rsi-os' : 'rsi-mid';
-    const comboCls = r.combo==='Bullish'?'combo-bull':r.combo==='Bearish'?'combo-bear':r.combo==='Konflikt'?'combo-warn':'combo-neu';
-    const momCls = String(r.momentum).startsWith('+') ? 'pct-bull' : 'pct-bear';
-    const agreeText = r.agree==='yes' ? '✓ Shoda' : r.agree==='partial' ? '~ Částečně' : r.agree==='no' ? '✗ Konflikt' : '—';
-    const agreeCls  = r.agree==='yes' ? 'agree-yes' : r.agree==='no' ? 'agree-no' : 'agree-na';
-
-    const tfCells = TF_KEYS.map(k => {
-      const b = r.tfBias[k];
-      return `<td class="tf-cell"><span class="${tfPillClass(b)}">${tfPillLabel(b)}</span></td>`;
-    }).join('');
-
-    return `<tr>
-      <td><span class="sym">${r.sym}</span><span class="cat-badge ${bc}">${bl}</span></td>
-      ${tfCells}
-      <td><span class="rsi-val ${rsiCls}">${r.rsi}</span>${r.rsi > 70 ? ' <span style="font-size:10px;color:var(--bear)">OB</span>' : r.rsi < 30 ? ' <span style="font-size:10px;color:var(--bull)">OS</span>' : ''}</td>
-      <td style="font-size:11px;color:var(--muted)">${r.emaTrend}</td>
-      <td class="${momCls}" style="font-size:12px">${r.momentum}</td>
-      <td class="${comboCls}" style="font-weight:500">${r.combo}</td>
-      <td class="${agreeCls}">${agreeText}</td>
-    </tr>`;
-  }).join('');
-}
-
-// ── TRADE FILTER ─────────────────────────────────────────────────────────────
-
-async function runTradeFilter() {
-  const btn    = document.getElementById('tf-run-btn');
-  const status = document.getElementById('tf-status');
-  const output = document.getElementById('tf-output');
-  const note   = document.getElementById('tf-api-note');
-
-  if (!apiKey) {
-    note.textContent = 'Zadej Claude API klíč nahoře pro Trade Filter.';
-    note.style.color = 'var(--bear)';
-    return;
-  }
-  note.textContent = '';
-  btn.disabled = true;
-  btn.textContent = 'Generuji...';
-  output.innerHTML = '<div class="tf-loading">AI analyzuje trh a filtruje setupy...</div>';
-
-  try {
-    const prompt = buildTradeFilterPrompt();
-    const result = await callClaude(prompt);
-    renderTradeFilterOutput(result);
-    status.textContent = 'Aktualizováno ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-  } catch(e) {
-    output.innerHTML = '<div style="color:var(--bear);font-size:12px">Chyba: ' + e.message + '</div>';
-  }
-  btn.disabled = false;
-  btn.textContent = 'Obnovit analýzu';
-}
-
-function buildTradeFilterPrompt() {
-  const d = macroData;
-  const vix = d.vix || 18;
-  const sentiment = vix < 15 ? 'Risk-On (VIX ' + vix + ')'
-    : vix < 20 ? 'Mírný Risk-On (VIX ' + vix + ')'
-    : vix < 25 ? 'Neutrální (VIX ' + vix + ')'
-    : vix < 30 ? 'Mírný Risk-Off (VIX ' + vix + ')'
-    : 'Risk-Off (VIX ' + vix + ')';
-
-  const scores = d.currency_scores || {};
-  const scoreStr = Object.entries(scores)
-    .sort((a,b) => b[1]-a[1])
-    .map(([k,v]) => k + ': ' + (v>0?'+':'') + v)
-    .join(', ');
-
-  const strong = (d.strong_ccys || []).join(', ') || 'nedostupné';
-  const weak   = (d.weak_ccys   || []).join(', ') || 'nedostupné';
-
-  // Fundamentální bias ze signálů
-  const bullPairs = biasResults.filter(r=>r.bias==='Bullish').sort((a,b)=>b.bull-a.bull).slice(0,6).map(r=>r.sym+' ('+r.bull+'%)').join(', ');
-  const bearPairs = biasResults.filter(r=>r.bias==='Bearish').sort((a,b)=>b.bear-a.bear).slice(0,6).map(r=>r.sym+' ('+r.bear+'%)').join(', ');
-
-  const dxyCtx = d.dxy_change > 0.2 ? 'USD silný (+' + d.dxy_change + '% DXY)'
-    : d.dxy_change < -0.2 ? 'USD slabý (' + d.dxy_change + '% DXY)'
-    : 'USD neutrální (' + d.dxy_change + '% DXY)';
-
-  return `Act as a professional FX macro + systematic trader.
-Your goal is NOT to describe the market, but to FILTER the cleanest high-probability forex trades for today.
-Focus only on high-confluence setups.
-
-INPUT — Current market context:
-* Risk sentiment: ${sentiment}
-* USD context: ${dxyCtx}
-* US 10Y yield: ${d.yields10y}% (prev: ${d.yields10y_prev}%)
-* CPI: ${d.cpi_actual}% (surprise: ${d.cpi_surprise > 0 ? '+' : ''}${d.cpi_surprise}%)
-* NFP: ${d.nfp_actual}k vs ${d.nfp_consensus}k consensus (surprise: ${d.nfp_surprise > 0 ? '+' : ''}${d.nfp_surprise}k)
-* Geopolitical risk: ${d.geo_risk > 0.6 ? 'Elevated' : d.geo_risk > 0.3 ? 'Moderate' : 'Low'} (${d.geo_risk})
-
-Currency strength scores (FX momentum + yield differential):
-${scoreStr}
-* Strong currencies: ${strong}
-* Weak currencies: ${weak}
-
-Fundamental bias engine signals:
-* Bullish: ${bullPairs || 'none'}
-* Bearish: ${bearPairs || 'none'}
-
-METHODOLOGY:
-Evaluate each pair using these factors:
-1. Relative currency strength (strong vs weak)
-2. Risk sentiment alignment (risk-on → favor AUD, CAD; risk-off → favor CHF, JPY)
-3. Carry / interest rate differential (prefer positive swap trades)
-4. Market flows (safe haven demand vs risk appetite)
-5. Avoid conflicting signals (e.g. strong currency vs safe haven inflow)
-
-IMPORTANT RULES:
-* Only include pairs where AT LEAST 3 factors are aligned
-* If signals are mixed or unclear → EXCLUDE the pair
-* Prioritize clarity over quantity
-* Prefer strong vs weak currency combinations
-* Do NOT include choppy / range conditions unless very clear
-
-OUTPUT STRUCTURE (respond in the same language I'm using — use English):
-
-1. Market Context (max 4 bullet points)
-- Clear, trader-focused summary (no generic macro talk)
-
-2. Top Bullish Pairs (max 3)
-For each pair:
-- Pair: [symbol]
-- Direction: Bullish
-- Why: [specific confluence, no fluff]
-- Factors aligned: [list them]
-- Quality score: X/10
-- Type: [trend / carry / momentum]
-
-3. Top Bearish Pairs (max 3)
-(same structure)
-
-4. Best of the Day
-- The single cleanest setup overall
-- Explain why it stands out
-
-5. Pairs to Avoid
-- List 3-5 pairs with conflicting signals
-- Short reason
-
-6. Trading Insight
-- 1-2 sentences: What is the best strategy today?
-
-STYLE: Be concise, precise, trader-focused. No generic explanations. No theory. Think like a prop trader filtering trades. Output only actionable insights.`;
-}
-
-function renderTradeFilterOutput(text) {
-  const output = document.getElementById('tf-output');
-  const lines = text.split('\n');
-  let html = '';
-  for (const line of lines) {
-    const t = line.trim();
-    if (!t) { html += '<div style="height:8px"></div>'; continue; }
-    // Nadpis sekce: začíná číslicí a tečkou
-    if (t.length > 2 && t[1] === '.' && t[0] >= '1' && t[0] <= '9') {
-      html += '<div class="tf-section-title">' + esc(t) + '</div>';
-    // Odrážka
-    } else if (t[0] === '-' || t[0] === '*') {
-      html += '<div style="font-size:12px;color:var(--muted);margin:3px 0;padding-left:8px">· ' + fmtLine(t.slice(1).trim()) + '</div>';
-    } else {
-      html += '<div style="font-size:12px;margin:2px 0">' + fmtLine(t) + '</div>';
-    }
-  }
-  output.innerHTML = '<div style="line-height:1.9;color:var(--text)">' + html + '</div>';
-}
-function esc(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-function fmtLine(s) {
-  return s
-    .replace(/Bullish/g, '<span class="bias-badge bias-bull" style="font-size:10px;padding:1px 6px">Bullish</span>')
-    .replace(/Bearish/g, '<span class="bias-badge bias-bear" style="font-size:10px;padding:1px 6px">Bearish</span>')
-    .replace(/Quality score: ?(\d+)\/10/g, '<span style="color:var(--gold)">Quality: $1/10</span>')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-}
-
 function toast(msg, type = 'info') {
   const wrap = document.getElementById('toast-wrap');
   const el = document.createElement('div');
@@ -2076,408 +1290,6 @@ function toast(msg, type = 'info') {
   el.textContent = msg;
   wrap.appendChild(el);
   setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(), 300); }, 3000);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FAIR VALUE v2 — Finnhub backend
-// ─────────────────────────────────────────────────────────────────────────────
-
-const FV_WATCHLIST = [
-  'CNSW','CNC','ADSK','BX','S','MU','VRSN','ASML','SMCI','HIMS','PYPL','INTC',
-  'PLTR','MSFT','JD','ADBE','UBER','ZM','MELI','CRM','GOOG','TME','NFLX','V',
-  'NVDA','PDD','AAPL','OXY','NXT','AMZN','TSLA','TAN','META','BAC','BIDU',
-  'TTD','PGEN','TLN','FICO','LULU','WIX','HTHT','ANF','PEP','SHW','RACE',
-  'SBUX','ABNB','PHM','IPCO','PINS','ALGN','TOL','TSSI','AMR','CSU','BKNG',
-  'BA','DELL','BRK.B','DUOL','NOW','GME','BABA','IBKR','AMD','DIS','NKE',
-  'ON','ROKU','SIRI','TDOC','UAA','BYDDY','DSY','BTCUSD','ETHUSD'
-];
-
-let fvWatchlistData = {};   // ticker → result obj
-let fvSortCol = 'upside';
-let fvSortDir = -1;          // -1 = desc (most undervalued first)
-
-// ── Health check API ────────────────────────────────────────────────────────
-async function checkFvHealth() {
-  const el = document.getElementById('fv-health-status');
-  el.innerHTML = '<span style="color:var(--muted)">⏳ testuji...</span>';
-  try {
-    const res = await fetch('/.netlify/functions/fairvalue?health=1&_=' + Date.now());
-    const data = await res.json();
-    if (!data.envFinnhub) {
-      el.innerHTML = '<span style="color:var(--bear)">✗ FINNHUB_API_KEY není v Netlify env</span>';
-    } else if (data.finnhub && data.finnhub.ok) {
-      el.innerHTML = `<span style="color:var(--bull)">✓ Finnhub OK — ${data.finnhub.sample.name} (${data.finnhub.sample.exchange})</span>`;
-    } else {
-      el.innerHTML = `<span style="color:var(--bear)">✗ ${data.finnhub?.error || 'unknown'}</span>`;
-    }
-  } catch (e) {
-    el.innerHTML = `<span style="color:var(--bear)">✗ Network error: ${e.message}</span>`;
-  }
-}
-
-// ── Single ticker calculator ────────────────────────────────────────────────
-async function runFairValueOne() {
-  const input = document.getElementById('fv-ticker-input');
-  const t = (input.value || '').trim().toUpperCase();
-  if (!t) { toast('Zadej ticker (např. AAPL)', 'error'); return; }
-  const btn = document.getElementById('fv-one-btn');
-  const msg = document.getElementById('fv-one-msg');
-  const out = document.getElementById('fv-one-result');
-  const skipCache = document.getElementById('fv-skip-cache')?.checked;
-  btn.disabled = true;
-  btn.textContent = 'Počítám...';
-  msg.textContent = '';
-  out.style.display = 'none';
-  try {
-    const url = '/.netlify/functions/fairvalue?symbol=' + encodeURIComponent(t)
-              + (skipCache ? '&refresh=1' : '')
-              + '&_=' + Date.now();
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const r = await res.json();
-    if (r.error && !r.symbol) throw new Error(r.error);
-    out.innerHTML = renderFvCard(t, r);
-    out.style.display = 'block';
-    const cacheTag = r.cached ? ' (cached)' : '';
-    msg.innerHTML = `<span style="color:var(--muted)">${r.fetchMs || '—'} ms${cacheTag}</span>`;
-    if (r.debug && Array.isArray(r.debug)) {
-      console.log(`[fairvalue ${t} — ${r.debug.length} debug lines]`);
-      r.debug.forEach(line => console.log('  ' + line));
-    }
-  } catch (e) {
-    msg.innerHTML = '<span style="color:var(--bear)">Chyba: ' + e.message + '</span>';
-  }
-  btn.disabled = false;
-  btn.textContent = 'Spočítat';
-}
-
-// ── Card renderer ───────────────────────────────────────────────────────────
-function renderFvCard(ticker, r) {
-  if (!r || (!r.symbol && r.error)) {
-    return `<div class="fv-detail-card"><strong>${ticker}</strong> — <span style="color:var(--bear)">${r?.error || 'no data'}</span></div>`;
-  }
-  const statusClass =
-    r.status === 'UNDERVALUED' ? 'fv-status-under' :
-    r.status === 'OVERVALUED'  ? 'fv-status-over'  :
-    r.status === 'FAIR'        ? 'fv-status-fair'  : 'fv-status-na';
-  const upsideClass =
-    r.upsidePct == null ? 'fv-diff-neu' :
-    r.upsidePct >  5    ? 'fv-diff-pos' :
-    r.upsidePct < -5    ? 'fv-diff-neg' : 'fv-diff-neu';
-  const sign = (r.upsidePct ?? 0) > 0 ? '+' : '';
-  const confColor =
-    r.confidence === 'HIGH'   ? 'var(--bull)' :
-    r.confidence === 'MEDIUM' ? 'var(--gold)' :
-    r.confidence === 'LOW'    ? 'var(--text-dim)' : 'var(--muted)';
-
-  // Klíčová fundamenta (pokud máme)
-  const n = r.normalized || {};
-  const rows = [];
-  if (n.epsTtm != null)        rows.push(['EPS (TTM)',        n.epsTtm.toFixed(2)]);
-  if (n.peTtm != null)         rows.push(['P/E (TTM)',        n.peTtm.toFixed(2)]);
-  if (n.psTtm != null)         rows.push(['P/S',              n.psTtm.toFixed(2)]);
-  if (n.pb != null)            rows.push(['P/B',              n.pb.toFixed(2)]);
-  if (n.revenueGrowth != null) rows.push(['Růst tržeb',       n.revenueGrowth.toFixed(1) + ' %']);
-  if (n.epsGrowth != null)     rows.push(['Růst EPS',         n.epsGrowth.toFixed(1) + ' %']);
-  if (n.grossMargin != null)   rows.push(['Gross margin',     n.grossMargin.toFixed(1) + ' %']);
-  if (n.operatingMargin != null) rows.push(['Operating margin', n.operatingMargin.toFixed(1) + ' %']);
-  if (n.netMargin != null)     rows.push(['Net margin',       n.netMargin.toFixed(1) + ' %']);
-  if (n.debtToEquity != null)  rows.push(['Debt/Equity',      n.debtToEquity.toFixed(2)]);
-  if (n.fcfPerShare != null)   rows.push(['FCF/share',        n.fcfPerShare.toFixed(2)]);
-  if (n.dividendYield != null) rows.push(['Dividend yield',   n.dividendYield.toFixed(2) + ' %']);
-  if (n.industry)              rows.push(['Industry',         n.industry]);
-  if (n.exchange)              rows.push(['Exchange',         n.exchange]);
-  if (n.currency)              rows.push(['Currency',         n.currency]);
-
-  const dataRows = rows.length
-    ? `<div class="fv-detail-grid">${rows.map(([k,v]) => `<div><span>${k}</span><span>${v}</span></div>`).join('')}</div>`
-    : '';
-
-  const debugBlock = (r.debug && r.debug.length) ? `
-    <details style="margin-top:10px">
-      <summary style="cursor:pointer; font-size:11px; color:var(--muted)">Debug (${r.debug.length} steps)</summary>
-      <pre style="background:rgba(255,255,255,0.03); padding:8px; border-radius:4px; font-size:11px; color:var(--muted); white-space:pre-wrap; margin-top:6px">${r.debug.join('\n')}</pre>
-    </details>` : '';
-
-  const errorsBlock = (r.errors && Object.values(r.errors).some(Boolean)) ? `
-    <div style="margin-top:8px; font-size:11px; color:var(--gold)">
-      ⚠ Source errors: ${Object.entries(r.errors).filter(([_,v])=>v).map(([k,v])=>`${k}: ${v}`).join(' · ')}
-    </div>` : '';
-
-  return `
-    <div class="fv-detail-card">
-      <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap">
-        <strong style="font-size:18px; letter-spacing:.04em">${ticker}</strong>
-        <span class="fv-type-pill fv-type-${r.type || 'unknown'}">${(r.type || 'unknown').toUpperCase()}</span>
-        <span style="color:var(--muted); font-size:12px">Cena: <strong style="color:var(--text)">${r.price != null ? '$' + r.price.toFixed(2) : '—'}</strong></span>
-        <span style="color:var(--muted); font-size:12px">Fair: <strong style="color:var(--text)">${r.fairValue != null ? '$' + r.fairValue.toFixed(2) : 'N/A'}</strong></span>
-        <span class="${upsideClass}" style="font-size:14px">${r.upsidePct != null ? sign + r.upsidePct.toFixed(1) + '%' : 'N/A'}</span>
-        <span class="fv-status ${statusClass}">${r.status || 'N/A'}</span>
-        <span style="font-size:11px; color:${confColor}; border:1px solid ${confColor}; padding:2px 6px; border-radius:3px">conf ${r.confidence || 'N/A'}</span>
-      </div>
-      <div style="font-size:11px; color:var(--muted); margin-top:6px">
-        ${r.method ? `<strong>Method:</strong> ${r.method}` : ''}
-        ${n.name ? ` · <strong>${n.name}</strong>` : ''}
-      </div>
-      ${r.explanation ? `<div style="font-size:12px; color:var(--text); margin-top:8px">${r.explanation}</div>` : ''}
-      ${dataRows}
-      ${errorsBlock}
-      ${debugBlock}
-    </div>`;
-}
-
-// ── Watchlist ───────────────────────────────────────────────────────────────
-// mode: 'price' (jen ceny — rychlé), 'all' (ceny + fundamenty — pomalé)
-//
-// Netlify Functions mají 10 s sync timeout. 77 tickerů cold-start by nestihl,
-// proto chunkujeme na frontendu po 10 tickerech a tabulku doplňujeme
-// inkrementálně. Backend dostane ?tickers=A,B,C — zpracuje jen tu dávku.
-const FV_CHUNK_SIZE = 10;
-
-async function runWatchlist(mode) {
-  mode = mode || 'price';
-  const btnPrice = document.getElementById('fv-wl-price-btn');
-  const btnAll   = document.getElementById('fv-wl-btn');
-  const status   = document.getElementById('fv-wl-status');
-  const tbody    = document.getElementById('fv-tbody');
-  if (btnPrice) btnPrice.disabled = true;
-  if (btnAll)   btnAll.disabled = true;
-  const activeBtn = mode === 'all' ? btnAll : btnPrice;
-  const origLabel = activeBtn?.textContent;
-  if (activeBtn) activeBtn.textContent = '...';
-
-  // Chunky
-  const chunks = [];
-  for (let i = 0; i < FV_WATCHLIST.length; i += FV_CHUNK_SIZE) {
-    chunks.push(FV_WATCHLIST.slice(i, i + FV_CHUNK_SIZE));
-  }
-
-  status.textContent = mode === 'all'
-    ? `Plný refresh ${FV_WATCHLIST.length} tickerů v ${chunks.length} dávkách…`
-    : `Refresh cen ${FV_WATCHLIST.length} tickerů v ${chunks.length} dávkách…`;
-  tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; color:var(--muted); padding:32px">⏳ Spouštím ${chunks.length} dávek po ${FV_CHUNK_SIZE} tickerech… (každá &lt;10 s kvůli Netlify limitu)</td></tr>`;
-
-  // Reset
-  fvWatchlistData = {};
-  const totals = { undervalued:0, fair:0, overvalued:0, na:0, sec:0, finnhub:0, none:0 };
-  const t0 = Date.now();
-  let firstRender = true;
-  let healthSnap = null;
-  let errorCount = 0;
-
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
-    const param = mode === 'all' ? 'refresh=1' : 'refreshPrice=1';
-    const url = `/.netlify/functions/fairvalue-watchlist?${param}&tickers=${chunk.join(',')}&_=${Date.now()}`;
-    try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-      Object.assign(fvWatchlistData, data.results || {});
-      if (data.stats) {
-        totals.undervalued += data.stats.undervalued || 0;
-        totals.fair        += data.stats.fair || 0;
-        totals.overvalued  += data.stats.overvalued || 0;
-        totals.na          += data.stats.na || 0;
-      }
-      if (data.sourceCounts) {
-        totals.sec     += data.sourceCounts.sec || 0;
-        totals.finnhub += data.sourceCounts.finnhub || 0;
-        totals.none    += data.sourceCounts.none || 0;
-      }
-      if (data.health && !healthSnap) healthSnap = data.health;
-
-      // Inkrementální render po každé dávce
-      if (firstRender) { tbody.innerHTML = ''; firstRender = false; }
-      renderWatchlist();
-
-      const done = (i + 1) * FV_CHUNK_SIZE;
-      const total = FV_WATCHLIST.length;
-      const secOK   = healthSnap?.sec?.ok;
-      const priceOK = healthSnap?.price?.ok;
-      const healthBadge =
-        `<span style="color:${secOK ? 'var(--bull)' : 'var(--bear)'}">${secOK ? '✓' : '✗'} SEC</span> ` +
-        `<span style="color:${priceOK ? 'var(--bull)' : 'var(--bear)'}">${priceOK ? '✓' : '✗'} Yahoo</span>`;
-      status.innerHTML = `${healthBadge} · ` +
-                         `<span style="color:var(--muted)">${Math.min(done, total)}/${total}</span> · ` +
-                         `<span style="color:var(--bull)">U:${totals.undervalued}</span> · ` +
-                         `<span style="color:var(--muted)">F:${totals.fair}</span> · ` +
-                         `<span style="color:var(--bear)">O:${totals.overvalued}</span> · ` +
-                         `<span style="color:var(--dim)">N/A:${totals.na}</span> · ` +
-                         `<span style="color:var(--muted)">SEC:${totals.sec}/FH:${totals.finnhub}/none:${totals.none}</span> · ` +
-                         `${Date.now() - t0}ms`;
-    } catch (e) {
-      errorCount++;
-      console.warn(`[watchlist] chunk ${i+1} (${chunk.join(',')}) failed:`, e.message);
-      // Označ tickery jako N/A v tabulce, ale pokračuj
-      for (const sym of chunk) {
-        fvWatchlistData[sym] = {
-          symbol: sym, type: 'error', price: null, fairValue: null, upsidePct: null,
-          status: 'N/A', confidence: 'N/A', method: null,
-          explanation: `Dávka selhala: ${e.message}`,
-          dataSource: null, fetchedAt: new Date().toISOString(), debug: [],
-        };
-      }
-      totals.na += chunk.length;
-      if (firstRender) { tbody.innerHTML = ''; firstRender = false; }
-      renderWatchlist();
-    }
-  }
-
-  if (errorCount > 0) {
-    const cur = status.innerHTML;
-    status.innerHTML = cur + ` · <span style="color:var(--bear)">${errorCount} dávek selhalo</span>`;
-  }
-  console.log(`[watchlist] DONE in ${Date.now() - t0}ms`, totals);
-
-  if (btnPrice) btnPrice.disabled = false;
-  if (btnAll)   btnAll.disabled = false;
-  if (activeBtn) activeBtn.textContent = origLabel;
-}
-
-function fvSortBy(col) {
-  if (fvSortCol === col) { fvSortDir *= -1; }
-  else { fvSortCol = col; fvSortDir = (col === 'ticker' || col === 'type' || col === 'status' || col === 'confidence' || col === 'source') ? 1 : -1; }
-  renderWatchlist();
-  ['ticker','type','price','fair','upside','status','confidence','source','updated'].forEach(c => {
-    const el = document.getElementById('fvi-' + c);
-    if (!el) return;
-    el.className = 'sort-icon ' + (c === fvSortCol ? (fvSortDir === 1 ? 'asc' : 'desc') : 'none');
-  });
-}
-
-// "5m ago" / "2h ago" relative time
-function relTime(iso) {
-  if (!iso) return '—';
-  const t = new Date(iso).getTime();
-  if (!isFinite(t)) return '—';
-  const diff = Date.now() - t;
-  if (diff < 0) return 'now';
-  const s = Math.floor(diff / 1000);
-  if (s < 60)    return s + 's ago';
-  if (s < 3600)  return Math.floor(s / 60) + 'm ago';
-  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
-  return Math.floor(s / 86400) + 'd ago';
-}
-
-function fvSourceBadge(src) {
-  if (!src) return '<span style="color:var(--muted)">—</span>';
-  const colors = {
-    sec:     ['#1a3a6e', '#9bc4ff'],   // modrá
-    finnhub: ['#3a2a4e', '#d6a8ff'],   // fialová
-    yahoo:   ['#4a3a1e', '#f5c97a'],   // žlutá
-    stooq:   ['#3a4a1e', '#c5e07a'],   // zelená
-    none:    ['#3a3a3a', '#999'],
-  };
-  const [bg, fg] = colors[src] || colors.none;
-  return `<span style="font-size:10px; background:${bg}; color:${fg}; padding:1px 6px; border-radius:3px; text-transform:uppercase">${src}</span>`;
-}
-
-function statusOrderVal(s) {
-  if (s === 'UNDERVALUED') return 4;
-  if (s === 'FAIR')        return 3;
-  if (s === 'OVERVALUED')  return 2;
-  return 1; // N/A
-}
-function confidenceOrderVal(c) {
-  if (c === 'HIGH')   return 4;
-  if (c === 'MEDIUM') return 3;
-  if (c === 'LOW')    return 2;
-  return 1; // N/A
-}
-
-function renderWatchlist() {
-  const tbody = document.getElementById('fv-tbody');
-  if (!tbody) return;
-  const fltUnder = document.getElementById('fv-flt-under')?.checked;
-  const fltOver  = document.getElementById('fv-flt-over')?.checked;
-  const fltNa    = document.getElementById('fv-flt-na')?.checked;
-  const anyFilter = fltUnder || fltOver || fltNa;
-
-  let rows = Object.entries(fvWatchlistData).map(([ticker, r]) => ({ ticker, r }));
-
-  // Filter
-  if (anyFilter) {
-    rows = rows.filter(({r}) => {
-      if (fltUnder && r.status === 'UNDERVALUED') return true;
-      if (fltOver  && r.status === 'OVERVALUED')  return true;
-      if (fltNa    && (r.status === 'N/A' || !r.status)) return true;
-      return false;
-    });
-  }
-
-  // Sort
-  rows.sort((a, b) => {
-    const ar = a.r, br = b.r;
-    let va, vb;
-    if      (fvSortCol === 'ticker')     { va = a.ticker;             vb = b.ticker; }
-    else if (fvSortCol === 'type')       { va = ar.type || 'z';       vb = br.type || 'z'; }
-    else if (fvSortCol === 'price')      { va = ar.price ?? -1;       vb = br.price ?? -1; }
-    else if (fvSortCol === 'fair')       { va = ar.fairValue ?? -1;   vb = br.fairValue ?? -1; }
-    else if (fvSortCol === 'upside')     { va = ar.upsidePct ?? -999; vb = br.upsidePct ?? -999; }
-    else if (fvSortCol === 'status')     { va = statusOrderVal(ar.status); vb = statusOrderVal(br.status); }
-    else if (fvSortCol === 'confidence') { va = confidenceOrderVal(ar.confidence); vb = confidenceOrderVal(br.confidence); }
-    else if (fvSortCol === 'source')     { va = (ar.normalized?.sources?.fundamentals || 'z'); vb = (br.normalized?.sources?.fundamentals || 'z'); }
-    else if (fvSortCol === 'updated')    { va = ar.fetchedAt ? new Date(ar.fetchedAt).getTime() : 0;
-                                            vb = br.fetchedAt ? new Date(br.fetchedAt).getTime() : 0; }
-    else                                 { va = a.ticker;             vb = b.ticker; }
-    if (va < vb) return -fvSortDir;
-    if (va > vb) return  fvSortDir;
-    return 0;
-  });
-
-  if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; color:var(--muted); padding:24px">Žádné výsledky odpovídající filtrům.</td></tr>`;
-    return;
-  }
-
-  tbody.innerHTML = rows.map(({ticker, r}) => {
-    const sCls = r.status === 'UNDERVALUED' ? 'fv-status-under'
-               : r.status === 'OVERVALUED' ? 'fv-status-over'
-               : r.status === 'FAIR'       ? 'fv-status-fair'
-               : 'fv-status-na';
-    const uCls = r.upsidePct == null ? 'fv-diff-neu'
-               : r.upsidePct >  5     ? 'fv-diff-pos'
-               : r.upsidePct < -5     ? 'fv-diff-neg' : 'fv-diff-neu';
-    const sign = (r.upsidePct ?? 0) > 0 ? '+' : '';
-    const typeCls = `fv-type-${r.type || 'unknown'}`;
-    const confColor = r.confidence === 'HIGH'   ? 'var(--bull)'
-                    : r.confidence === 'MEDIUM' ? 'var(--gold)'
-                    : r.confidence === 'LOW'    ? 'var(--text-dim)'
-                    : 'var(--muted)';
-    const fundSrc  = r.normalized?.sources?.fundamentals || (r.type === 'crypto' ? r.normalized?.sources?.price : null);
-    const updated  = relTime(r.fetchedAt);
-    return `<tr>
-      <td><strong>${ticker}</strong></td>
-      <td><span class="fv-type-pill ${typeCls}">${(r.type||'').toUpperCase()||'—'}</span></td>
-      <td>${r.price != null ? '$' + r.price.toFixed(2) : '—'}</td>
-      <td>${r.fairValue != null ? '$' + r.fairValue.toFixed(2) : '<span style="color:var(--muted)">N/A</span>'}</td>
-      <td class="${uCls}">${r.upsidePct != null ? sign + r.upsidePct.toFixed(1) + '%' : '<span style="color:var(--muted)">N/A</span>'}</td>
-      <td><span class="fv-status ${sCls}">${r.status || 'N/A'}</span></td>
-      <td><span style="font-size:10px; color:${confColor}; border:1px solid ${confColor}; padding:1px 5px; border-radius:3px">${r.confidence || 'N/A'}</span></td>
-      <td>${fvSourceBadge(fundSrc)}</td>
-      <td style="font-size:10px; color:var(--muted)" title="${r.fetchedAt || ''}">${updated}</td>
-      <td style="font-size:10px; color:var(--muted)">${r.method || '—'}</td>
-      <td><button class="fv-detail-btn" onclick="fvShowDetail('${ticker}')">Detail</button></td>
-    </tr>`;
-  }).join('');
-}
-
-function fvShowDetail(ticker) {
-  const r = fvWatchlistData[ticker];
-  if (!r) return;
-  const modalId = 'fv-modal-' + ticker.replace(/[^A-Z0-9]/g, '_');
-  let modal = document.getElementById(modalId);
-  if (modal) { modal.remove(); return; }  // toggle
-  modal = document.createElement('div');
-  modal.id = modalId;
-  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
-  modal.onclick = e => { if (e.target === modal) modal.remove(); };
-  modal.innerHTML = `<div style="max-width:780px; width:100%; max-height:90vh; overflow:auto; background:var(--surface); border:1px solid var(--border2); border-radius:8px; padding:6px">
-    <div style="text-align:right;padding:4px 8px"><button onclick="document.getElementById('${modalId}').remove()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer">×</button></div>
-    ${renderFvCard(ticker, r)}
-  </div>`;
-  document.body.appendChild(modal);
 }
 </script>
 </body>
