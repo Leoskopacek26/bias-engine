@@ -1005,7 +1005,9 @@ async function fetchMacroData() {
     macroData.fxSource = 'offline';
     // Záloha: přímý Frankfurter s krátkým timeoutem
     try {
-      const r = await fetchWithTimeout('https://api.frankfurter.app/latest?from=USD&to=EUR,GBP,JPY,CHF,AUD,CAD,NZD', 4000);
+      // Pozn.: frankfurter.app dělá 301 → frankfurter.dev a ten nemá CORS hlavičku
+      // pro náš origin. Voláme rovnou nový endpoint, který CORS má (Access-Control-Allow-Origin: *).
+      const r = await fetchWithTimeout('https://api.frankfurter.dev/v1/latest?base=USD&symbols=EUR,GBP,JPY,CHF,AUD,CAD,NZD', 4000);
       if (r.ok) {
         const fx = await r.json();
         macroData.rates = fx.rates;
@@ -2226,48 +2228,108 @@ function renderFvCard(ticker, r) {
 
 // ── Watchlist ───────────────────────────────────────────────────────────────
 // mode: 'price' (jen ceny — rychlé), 'all' (ceny + fundamenty — pomalé)
+//
+// Netlify Functions mají 10 s sync timeout. 77 tickerů cold-start by nestihl,
+// proto chunkujeme na frontendu po 10 tickerech a tabulku doplňujeme
+// inkrementálně. Backend dostane ?tickers=A,B,C — zpracuje jen tu dávku.
+const FV_CHUNK_SIZE = 10;
+
 async function runWatchlist(mode) {
   mode = mode || 'price';
   const btnPrice = document.getElementById('fv-wl-price-btn');
   const btnAll   = document.getElementById('fv-wl-btn');
   const status   = document.getElementById('fv-wl-status');
   const tbody    = document.getElementById('fv-tbody');
-  if (btnPrice) { btnPrice.disabled = true; }
-  if (btnAll)   { btnAll.disabled = true; }
+  if (btnPrice) btnPrice.disabled = true;
+  if (btnAll)   btnAll.disabled = true;
   const activeBtn = mode === 'all' ? btnAll : btnPrice;
   const origLabel = activeBtn?.textContent;
   if (activeBtn) activeBtn.textContent = '...';
+
+  // Chunky
+  const chunks = [];
+  for (let i = 0; i < FV_WATCHLIST.length; i += FV_CHUNK_SIZE) {
+    chunks.push(FV_WATCHLIST.slice(i, i + FV_CHUNK_SIZE));
+  }
+
   status.textContent = mode === 'all'
-    ? `Plný refresh ${FV_WATCHLIST.length} tickerů (SEC + Yahoo)…`
-    : `Refresh cen ${FV_WATCHLIST.length} tickerů (fundamenty z cache)…`;
-  tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; color:var(--muted); padding:32px">⏳ Načítám fair value pro ${FV_WATCHLIST.length} tickerů… ${mode === 'all' ? '(~30–60 s první běh, SEC fundamenty se cachují na 7 dní)' : '(typicky <10 s)'}</td></tr>`;
-  try {
+    ? `Plný refresh ${FV_WATCHLIST.length} tickerů v ${chunks.length} dávkách…`
+    : `Refresh cen ${FV_WATCHLIST.length} tickerů v ${chunks.length} dávkách…`;
+  tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; color:var(--muted); padding:32px">⏳ Spouštím ${chunks.length} dávek po ${FV_CHUNK_SIZE} tickerech… (každá &lt;10 s kvůli Netlify limitu)</td></tr>`;
+
+  // Reset
+  fvWatchlistData = {};
+  const totals = { undervalued:0, fair:0, overvalued:0, na:0, sec:0, finnhub:0, none:0 };
+  const t0 = Date.now();
+  let firstRender = true;
+  let healthSnap = null;
+  let errorCount = 0;
+
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
     const param = mode === 'all' ? 'refresh=1' : 'refreshPrice=1';
-    const url = `/.netlify/functions/fairvalue-watchlist?${param}&_=${Date.now()}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    fvWatchlistData = data.results || {};
-    const s = data.stats || { undervalued:0, fair:0, overvalued:0, na:0 };
-    const sc = data.sourceCounts || {};
-    const secOK = data.health?.sec?.ok;
-    const priceOK = data.health?.price?.ok;
-    const healthBadge =
+    const url = `/.netlify/functions/fairvalue-watchlist?${param}&tickers=${chunk.join(',')}&_=${Date.now()}`;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      Object.assign(fvWatchlistData, data.results || {});
+      if (data.stats) {
+        totals.undervalued += data.stats.undervalued || 0;
+        totals.fair        += data.stats.fair || 0;
+        totals.overvalued  += data.stats.overvalued || 0;
+        totals.na          += data.stats.na || 0;
+      }
+      if (data.sourceCounts) {
+        totals.sec     += data.sourceCounts.sec || 0;
+        totals.finnhub += data.sourceCounts.finnhub || 0;
+        totals.none    += data.sourceCounts.none || 0;
+      }
+      if (data.health && !healthSnap) healthSnap = data.health;
+
+      // Inkrementální render po každé dávce
+      if (firstRender) { tbody.innerHTML = ''; firstRender = false; }
+      renderWatchlist();
+
+      const done = (i + 1) * FV_CHUNK_SIZE;
+      const total = FV_WATCHLIST.length;
+      const secOK   = healthSnap?.sec?.ok;
+      const priceOK = healthSnap?.price?.ok;
+      const healthBadge =
         `<span style="color:${secOK ? 'var(--bull)' : 'var(--bear)'}">${secOK ? '✓' : '✗'} SEC</span> ` +
         `<span style="color:${priceOK ? 'var(--bull)' : 'var(--bear)'}">${priceOK ? '✓' : '✗'} Yahoo</span>`;
-    status.innerHTML = `${healthBadge} · ` +
-                       `<span style="color:var(--bull)">U:${s.undervalued}</span> · ` +
-                       `<span style="color:var(--muted)">F:${s.fair}</span> · ` +
-                       `<span style="color:var(--bear)">O:${s.overvalued}</span> · ` +
-                       `<span style="color:var(--dim)">N/A:${s.na}</span> · ` +
-                       `<span style="color:var(--muted)">SEC:${sc.sec||0}/FH:${sc.finnhub||0}/none:${sc.none||0}</span> · ` +
-                       `${data.ms||0}ms`;
-    console.log(`[watchlist] ${data.ms}ms`, data.queues, data.cache);
-    renderWatchlist();
-  } catch (e) {
-    status.innerHTML = '<span style="color:var(--bear)">Chyba: ' + e.message + '</span>';
-    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; color:var(--bear); padding:32px">${e.message}</td></tr>`;
+      status.innerHTML = `${healthBadge} · ` +
+                         `<span style="color:var(--muted)">${Math.min(done, total)}/${total}</span> · ` +
+                         `<span style="color:var(--bull)">U:${totals.undervalued}</span> · ` +
+                         `<span style="color:var(--muted)">F:${totals.fair}</span> · ` +
+                         `<span style="color:var(--bear)">O:${totals.overvalued}</span> · ` +
+                         `<span style="color:var(--dim)">N/A:${totals.na}</span> · ` +
+                         `<span style="color:var(--muted)">SEC:${totals.sec}/FH:${totals.finnhub}/none:${totals.none}</span> · ` +
+                         `${Date.now() - t0}ms`;
+    } catch (e) {
+      errorCount++;
+      console.warn(`[watchlist] chunk ${i+1} (${chunk.join(',')}) failed:`, e.message);
+      // Označ tickery jako N/A v tabulce, ale pokračuj
+      for (const sym of chunk) {
+        fvWatchlistData[sym] = {
+          symbol: sym, type: 'error', price: null, fairValue: null, upsidePct: null,
+          status: 'N/A', confidence: 'N/A', method: null,
+          explanation: `Dávka selhala: ${e.message}`,
+          dataSource: null, fetchedAt: new Date().toISOString(), debug: [],
+        };
+      }
+      totals.na += chunk.length;
+      if (firstRender) { tbody.innerHTML = ''; firstRender = false; }
+      renderWatchlist();
+    }
   }
+
+  if (errorCount > 0) {
+    const cur = status.innerHTML;
+    status.innerHTML = cur + ` · <span style="color:var(--bear)">${errorCount} dávek selhalo</span>`;
+  }
+  console.log(`[watchlist] DONE in ${Date.now() - t0}ms`, totals);
+
   if (btnPrice) btnPrice.disabled = false;
   if (btnAll)   btnAll.disabled = false;
   if (activeBtn) activeBtn.textContent = origLabel;
