@@ -32,6 +32,23 @@ const WATCHLIST = [
 ];
 
 exports.handler = async function(event) {
+  try {
+    return await handleRequest(event);
+  } catch (e) {
+    // Vrátíme JSON error místo Netlify 502, aby frontend viděl detail
+    return {
+      statusCode: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({
+        error: e.message,
+        stack: e.stack?.split('\n').slice(0, 6),
+        time: new Date().toISOString(),
+      }),
+    };
+  }
+};
+
+async function handleRequest(event) {
   const qs = (event && event.queryStringParameters) || {};
   const skipCache = qs.refresh === '1' || qs.skipCache === '1';
   const refreshFund = qs.refresh === '1' || qs.refreshFund === '1';
@@ -62,11 +79,13 @@ exports.handler = async function(event) {
   }
 
   // ── Health snapshot (cached 10 min) ─────────────────────────────────────
+  // POZN: skipCache (refresh=1) NESPOUŠTÍ healthCheck znovu — healthCheck dělá
+  // 2 SEC requesty + Yahoo, což při cold-startu sní 3-5 s z 10 s budgetu.
+  // Health beztak hlídáme v pozadí; pokud cache prázdná, vrátíme placeholder
+  // a healthCheck spustíme až po ticker zpracování (mimo critical path).
   let health = cache.get('health:bundle');
-  if (!health || skipCache) {
-    const [s, p] = await Promise.all([sec.healthCheck(), price.healthCheck()]);
-    health = { sec: s, price: p, time: new Date().toISOString() };
-    cache.set('health:bundle', health, cache.TTL.health);
+  if (!health) {
+    health = { sec: { ok: null, pending: true }, price: { ok: null, pending: true }, time: new Date().toISOString() };
   }
 
   // ── Per-ticker zpracování (paralelně, queue řídí rate) ──────────────────
@@ -77,9 +96,29 @@ exports.handler = async function(event) {
     refreshFund: refreshFund,
   };
 
+  // Per-ticker timeout aby jeden zaseknutý ticker neshodil celou dávku
+  // (Netlify má 10 s sync limit; necháme si rezervu 2 s na response serializaci)
+  const TICKER_TIMEOUT_MS = 7500;
+  function withTimeout(p, ms, sym) {
+    return Promise.race([
+      p,
+      new Promise((_, rej) => setTimeout(
+        () => rej(new Error(`Timeout ${ms}ms (${sym})`)), ms
+      )),
+    ]);
+  }
+
   const settle = await Promise.allSettled(
-    tickers.map(sym => calculateOne(sym, opts))
+    tickers.map(sym => withTimeout(calculateOne(sym, opts), TICKER_TIMEOUT_MS, sym))
   );
+
+  // Fire-and-forget health refresh (mimo critical path)
+  if (health.sec?.pending && tickers.length <= 15) {
+    Promise.all([sec.healthCheck(), price.healthCheck()])
+      .then(([s, p]) => cache.set('health:bundle',
+        { sec: s, price: p, time: new Date().toISOString() }, cache.TTL.health))
+      .catch(() => {});
+  }
 
   const results = {};
   const order = [];
